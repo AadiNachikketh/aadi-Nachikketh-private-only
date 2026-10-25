@@ -1,0 +1,2012 @@
+# PROJECT: BUILD A COMPLETE AGENCY MANAGEMENT CRM — AGENCY COMMAND CENTER
+
+Act as a senior full-stack software engineer, database architect, UI/UX designer, product manager, and security engineer.
+
+Your task is to design and build a complete, production-oriented web application called **Agency Command Center**.
+
+This is a private business management platform for a web development and digital services agency. The agency finds businesses that need websites, contacts potential clients through outreachers, closes website development deals, assigns projects to developers, tracks revenue and expenses, and manages its entire workflow.
+
+I do NOT want a static website, a landing page, a simple dashboard mockup, or a UI prototype with non-functional buttons.
+
+I want a fully functional application with a real database, persistent data storage, working forms, working filters, functional navigation, team management, location management, client management, project management, and downloadable spreadsheets.
+
+Every important button, form, search box, filter, table action, and navigation item must work.
+
+Do not use fake functionality. Do not create buttons that only display alerts or pretend that an operation succeeded without actually saving the data.
+
+Build the application systematically, starting with the application architecture and core functionality, then implementing each module and connecting it to the database.
+
+If a feature requires external credentials, API keys, or configuration, create the integration structure and clearly document what must be configured. Do not pretend an unconfigured integration works.
+
+==================================================
+1. APPLICATION OBJECTIVE
+==================================================
+
+The application must solve five major problems.
+
+1. Store and organize countries, states, provinces, districts, counties, cities, towns, and localities.
+2. Allow me to select and save locations so I never need to search for the same location repeatedly.
+3. Manage all business leads and clients in a centralized CRM.
+4. Manage outreachers who contact prospects and sell websites.
+5. Manage website developers, client projects, deadlines, payments, and profitability.
+
+The application must also support spreadsheet imports and exports.
+
+All modules must be connected.
+
+Example workflow:
+
+I select India → Karnataka → Bengaluru Urban → Bengaluru → Whitefield.
+
+I save Whitefield as a target location and select Jewellery Stores as the business category.
+
+I import or manually add jewellery stores from Whitefield to my CRM.
+
+I assign selected leads to an outreacher.
+
+The outreacher contacts the businesses and records the results.
+
+When a business agrees to purchase a website, I mark it as a won deal.
+
+I assign the project to a developer.
+
+The developer updates the project status until the website is completed and delivered.
+
+The application calculates the project's financial results and updates the dashboard.
+
+This entire workflow must work using persistent database records.
+
+==================================================
+2. TECHNOLOGY STACK
+==================================================
+
+Use the following technologies where compatible with the Google AI Studio coding environment.
+
+Frontend:
+- React.
+- TypeScript.
+- Vite, if appropriate for the generated project.
+- Tailwind CSS.
+- A reusable component architecture.
+- Lucide React icons.
+- Recharts for analytics and charts.
+
+Backend:
+- Supabase.
+- PostgreSQL.
+- Supabase Authentication.
+- Supabase Row Level Security.
+- Supabase Storage when file storage is needed.
+
+Spreadsheet functionality:
+- ExcelJS or another suitable maintained library for XLSX exports.
+- A CSV parsing library for CSV imports.
+- Support UTF-8 data correctly.
+
+Location data:
+- Use a suitable geographical dataset such as GeoNames and authoritative administrative-boundary datasets where appropriate.
+- Design the application so geographical datasets can be imported and updated.
+- Support importing large datasets without freezing the interface.
+- Respect the licensing and attribution requirements of each dataset.
+
+Deployment:
+- Prepare the project for deployment on a suitable hosting platform.
+- Keep configuration separate from source code.
+- Include clear setup and deployment instructions.
+
+IMPORTANT ARCHITECTURAL RULES:
+
+1. Do not store the entire application's business data exclusively in browser localStorage.
+2. Use PostgreSQL through Supabase for persistent business data.
+3. LocalStorage may be used for harmless interface preferences, such as the selected theme or sidebar state.
+4. Never expose the Supabase service-role key or other privileged credentials in frontend code.
+5. Use environment variables for configuration.
+6. Never hardcode credentials into the source code.
+7. Validate important data on the server or database side.
+8. Use Row Level Security to protect private business records.
+9. Use proper database relationships and foreign keys.
+10. Use migrations or documented SQL scripts to create the database schema.
+11. Avoid unnecessary complexity and redundant libraries.
+12. If the current environment has different constraints, explain them and adapt the implementation without sacrificing security or core functionality.
+
+==================================================
+3. VISUAL DESIGN AND USER EXPERIENCE
+==================================================
+
+Create a premium, modern business application with a professional dark-mode interface.
+
+The design should feel like a combination of a modern CRM, a project management platform, and an operations dashboard.
+
+Visual direction:
+- Dark charcoal background.
+- Slightly lighter sidebar and card backgrounds.
+- Subtle borders.
+- Clear typography.
+- Generous spacing.
+- Rounded corners.
+- Restrained accent colors.
+- Green for successful states.
+- Amber for pending states.
+- Red for errors and overdue items.
+- Blue or violet for primary actions.
+- Smooth but subtle transitions.
+- Consistent icons.
+- Excellent table readability.
+
+Avoid:
+- Excessive gradients.
+- Oversized headings.
+- Unnecessary animations.
+- Excessive empty space.
+- Giant cards that reduce information density.
+- Fake charts.
+- Unnecessary glassmorphism.
+- Overly decorative layouts.
+- Generic landing-page designs.
+
+The application must prioritize productivity.
+
+I will frequently work with hundreds or thousands of business records, so the interface must make searching, selecting, filtering, sorting, and editing records fast.
+
+Use a consistent layout.
+
+LEFT SIDEBAR:
+
+- Dashboard
+- Locations Explorer
+- Clients & Leads
+- Outreachers
+- Developers
+- Projects
+- Reports & Exports
+- Settings
+
+TOP BAR:
+
+- Current page title.
+- Global search.
+- Notifications.
+- Quick Add button.
+- User profile menu.
+
+The sidebar should be collapsible.
+
+The main content area should adapt to the selected module.
+
+Add loading states, empty states, error states, success messages, confirmation dialogs, and form validation.
+
+Do not use browser alert() as the primary notification system.
+
+Use accessible modals, toasts, and inline validation.
+
+Ensure the application is responsive on desktop, tablet, and mobile. Desktop should be the primary optimization target.
+
+==================================================
+4. AUTHENTICATION AND USER ROLES
+==================================================
+
+Implement authentication using Supabase Auth.
+
+Support:
+- Sign in.
+- Sign out.
+- Password recovery.
+- Protected application routes.
+- User profile management.
+
+The application should support these roles:
+
+A. ADMIN
+
+The administrator has access to all authorized business operations.
+
+Admin permissions:
+- Manage all locations and saved location targets.
+- View, create, edit, and delete authorized business leads.
+- Import and export records.
+- Create and manage outreachers.
+- Assign leads.
+- View outreach performance.
+- Manage developers.
+- Assign projects.
+- View financial reports.
+- Configure business categories and statuses.
+- Manage team access.
+
+B. OUTREACHER
+
+Outreachers can:
+- View leads assigned to them.
+- Record calls, emails, and messages.
+- Update permitted lead statuses.
+- Add notes and follow-up dates.
+- View their assigned tasks.
+- View their own commission information.
+
+C. DEVELOPER
+
+Developers can:
+- View projects assigned to them.
+- View relevant project requirements.
+- Update project milestones.
+- Record project progress.
+- Update permitted project statuses.
+- View deadlines and revision requests.
+
+Do not rely on hiding buttons in the frontend as the only security mechanism.
+
+Enforce permissions through database policies and appropriately protected server-side operations.
+
+Users must not be able to gain access to restricted data by manipulating URLs or making direct database requests.
+
+Allow the administrator to manage role assignments securely.
+
+==================================================
+5. MODULE ONE: LOCATIONS EXPLORER
+==================================================
+
+This is one of the most important modules.
+
+I regularly search for businesses in different geographical locations to find potential customers for my web development agency.
+
+I want a centralized geographical database so I can save locations and return to them without repeatedly searching for the same district, county, city, or locality.
+
+Create a complete Locations Explorer page.
+
+5.1 LOCATION HIERARCHY
+
+Support this general hierarchy:
+
+Country
+  → First-level administrative division
+    → Second-level administrative division
+      → City or town
+        → Locality or neighborhood
+
+The actual hierarchy must be flexible because countries use different administrative systems.
+
+Examples:
+
+India:
+- Country.
+- State or union territory.
+- District.
+- City or town.
+- Locality or neighborhood.
+
+United States:
+- Country.
+- State.
+- County.
+- City or town.
+- Neighborhood where geographical data is available.
+
+United Kingdom and other countries:
+- Support the administrative divisions appropriate to their geographical datasets.
+
+Do not assume that every country has a state, county, district, and city in exactly that order.
+
+Use configurable administrative levels and preserve the original geographic identifiers and administrative classifications supplied by the dataset.
+
+5.2 LOCATION DATABASE
+
+Create a database structure for locations.
+
+Each location should contain appropriate fields such as:
+
+- Unique ID.
+- Name.
+- Normalized name for searching.
+- Location type.
+- Parent location ID.
+- Country code.
+- External geographic identifier.
+- Administrative level.
+- Latitude, when available.
+- Longitude, when available.
+- Data source.
+- Last updated timestamp.
+
+Use a self-referencing parent_location_id or another suitable relational design.
+
+A child location must reference its actual parent.
+
+Prevent duplicate imports using stable external identifiers wherever possible.
+
+5.3 GEOGRAPHICAL DATA IMPORT
+
+The application must not begin with an empty location database that requires me to add every country manually.
+
+Implement a documented geographical-data import process.
+
+The process should support:
+- Importing countries.
+- Importing administrative divisions.
+- Importing cities and towns.
+- Importing localities where data is available.
+- Updating existing records.
+- Avoiding duplicate records.
+- Handling parent-child relationships.
+- Reporting invalid records.
+- Reporting skipped duplicates.
+- Showing import progress.
+
+For large datasets, use batch processing rather than trying to insert every record in one request.
+
+Create an import utility or documented backend process for loading the dataset into PostgreSQL.
+
+Do not assume that a free dataset contains every neighborhood in every country.
+
+Clearly distinguish available geographic data from locations that have not been imported.
+
+If the selected dataset lacks detailed locality information, support importing additional compatible datasets.
+
+5.4 LOCATION EXPLORER INTERFACE
+
+Create a clean, searchable location browser.
+
+The interface should include:
+
+- A global location search field.
+- A hierarchical expandable tree.
+- A breadcrumb showing the current location.
+- A detail panel for the selected location.
+- A checkbox next to each selectable location.
+- A save-to-target-list action.
+- A saved-locations section.
+- A recently viewed section.
+- A filter by country.
+- A filter by administrative level.
+- A filter by saved status.
+- A filter by work status.
+
+Example:
+
+India
+  Karnataka
+    Bengaluru Urban
+      Bengaluru
+        Whitefield
+        Marathahalli
+        JP Nagar
+        Indiranagar
+
+When I click Bengaluru Urban, show its relevant child locations.
+
+When I click Whitefield, display its details and available actions.
+
+When I check the Whitefield checkbox, add it to the current selection.
+
+Allow me to select multiple locations.
+
+5.5 SAVED LOCATIONS
+
+I must be able to save locations permanently.
+
+Create a Saved Locations feature.
+
+Each saved location record should contain:
+
+- Location ID.
+- Saved date.
+- Work status.
+- Priority.
+- Business category or categories to target.
+- Notes.
+- Optional target number of leads.
+- Optional assigned outreacher.
+- Last researched date.
+
+Statuses:
+- Not Started.
+- Researching.
+- Ready for Outreach.
+- In Progress.
+- Completed.
+- Paused.
+
+Allow me to:
+- Save a location.
+- Remove it from my saved list.
+- Change its status.
+- Add notes.
+- Set its priority.
+- Assign it to an outreacher.
+- Filter saved locations.
+- Sort by priority or date.
+- Open a previously saved location.
+- Select several saved locations at once.
+
+Do not delete the underlying geographical location when removing it from my saved list.
+
+Saving a location must not create a duplicate if it has already been saved by the same user or workspace.
+
+5.6 LOCATION TARGETING WORKFLOW
+
+When I select a saved location, provide a button labeled:
+
+"View Leads in This Location"
+
+This should open the CRM and filter records using the selected location.
+
+Also provide an action:
+
+"Add Leads to This Location"
+
+This should allow me to import or create business records associated with the selected location.
+
+Do not claim that the app can automatically discover every business in a location unless a real business-data integration has been configured.
+
+The location explorer is primarily a geographical database and targeting manager, not a fake business scraping tool.
+
+==================================================
+6. MODULE TWO: CLIENTS AND LEADS CRM
+==================================================
+
+Create a fully functional CRM for all businesses I discover, contact, or sell websites to.
+
+6.1 CLIENT DATABASE FIELDS
+
+Each lead should support:
+
+- Unique lead ID.
+- Business name.
+- Contact person's name.
+- Business phone number.
+- Email address.
+- Website URL.
+- Google Maps profile URL.
+- Business category.
+- Country.
+- State or province.
+- District or county.
+- City or town.
+- Locality.
+- Full address.
+- Source.
+- Lead creation date.
+- Assigned outreacher.
+- Assigned developer, if applicable.
+- Lead status.
+- Priority.
+- Potential deal value.
+- Agreed deal value.
+- Follow-up date.
+- Last contact date.
+- Notes.
+- Tags.
+- Created timestamp.
+- Updated timestamp.
+
+Fields such as email, phone number, address, and website may be empty when the information is unavailable.
+
+Do not require every field to be filled before a lead can be saved.
+
+6.2 ADD AND EDIT LEADS
+
+Implement a working Add Lead button.
+
+When clicked, open a properly designed form.
+
+The form must allow the user to:
+- Enter the business name.
+- Add contact information.
+- Add a Google Maps profile URL.
+- Enter the website URL if available.
+- Select the business category.
+- Select the geographical location.
+- Assign an outreacher.
+- Enter a deal estimate.
+- Set the lead status.
+- Add notes.
+- Schedule a follow-up.
+
+Use searchable location selectors backed by the location database.
+
+Allow the user to edit existing records.
+
+Validate email addresses, URLs, numerical values, and required fields.
+
+Provide confirmation before deleting a lead.
+
+Prefer soft deletion or archiving when appropriate so business records are not accidentally lost.
+
+6.3 LEAD STATUSES
+
+Create these default statuses:
+
+- New Lead.
+- Not Contacted.
+- Contacted.
+- Interested.
+- Meeting Scheduled.
+- Proposal Sent.
+- Negotiation.
+- Deal Won.
+- Deal Lost.
+- Follow-up Required.
+
+Allow the administrator to configure statuses in settings.
+
+Every status change must be persisted in the database.
+
+Record relevant status changes in an activity history.
+
+6.4 LEAD TABLE
+
+Create a professional table with:
+
+- Checkbox selection.
+- Business name.
+- Phone number.
+- Email.
+- Website status.
+- Business category.
+- Location.
+- Assigned outreacher.
+- Lead status.
+- Deal value.
+- Follow-up date.
+- Last updated.
+- Actions menu.
+
+Support:
+- Search.
+- Sorting.
+- Pagination.
+- Filters.
+- Column visibility.
+- Bulk selection.
+- Bulk assignment.
+- Bulk status changes.
+- Bulk export.
+- Record editing.
+- Record archiving.
+
+The table must remain usable with thousands of records.
+
+Use server-side pagination and filtering where appropriate.
+
+Avoid loading the entire database into the browser.
+
+6.5 FILTERS
+
+Implement these filters:
+
+- Country.
+- State or province.
+- District or county.
+- City.
+- Locality.
+- Business category.
+- Lead status.
+- Assigned outreacher.
+- Assigned developer.
+- Website status.
+- Deal value range.
+- Creation date.
+- Follow-up date.
+
+Allow filters to work together.
+
+Example:
+
+Country = India
+State = Maharashtra
+City = Mumbai
+Category = Jewellery Stores
+Website status = No Website
+Lead status = Not Contacted
+
+Display only records matching all selected conditions.
+
+Include a Clear Filters button.
+
+6.6 WEBSITE STATUS
+
+Track the business's website situation.
+
+Support:
+- No Website.
+- Has Website.
+- Website Needs Improvement.
+- Website Status Unknown.
+
+Do not automatically classify a business as having no website simply because its website field is empty.
+
+Unknown information must remain unknown until verified.
+
+6.7 LEAD DETAIL PAGE
+
+Clicking a business should open its detailed record.
+
+Show:
+- Business details.
+- Contact details.
+- Location.
+- Google Maps profile link.
+- Website link.
+- Assigned team members.
+- Lead status.
+- Deal value.
+- Follow-up schedule.
+- Notes.
+- Contact history.
+- Status history.
+- Related projects.
+- Related activities.
+
+Google Maps profile links should open in a new browser tab.
+
+Use safe link handling and do not trust arbitrary HTML entered into fields.
+
+6.8 ACTIVITY TRACKING
+
+Create an activity history for each lead.
+
+Activity types:
+- Phone Call.
+- Email.
+- WhatsApp Message.
+- Meeting.
+- Proposal.
+- Follow-up.
+- Note.
+- Status Change.
+
+Each activity should record:
+- Lead ID.
+- User ID.
+- Activity type.
+- Date and time.
+- Outcome.
+- Notes.
+- Next follow-up date, if applicable.
+
+When an outreacher records a call, the activity should appear on the lead's history.
+
+Do not pretend to place calls, send emails, or send WhatsApp messages unless the corresponding integration is implemented and authorized.
+
+==================================================
+7. MODULE THREE: SPREADSHEET IMPORT AND EXPORT
+==================================================
+
+This is a critical feature because I regularly work with exported business leads.
+
+I want to manage data from CSV and Excel files.
+
+7.1 IMPORT FORMATS
+
+Support:
+- CSV.
+- XLSX.
+
+7.2 IMPORT WORKFLOW
+
+Implement the following workflow:
+
+Step 1: Select or drag and drop a file.
+
+Step 2: Parse the file.
+
+Step 3: Display a preview of the records.
+
+Step 4: Allow column mapping.
+
+Step 5: Validate the data.
+
+Step 6: Display errors and possible duplicates.
+
+Step 7: Let the user confirm the import.
+
+Step 8: Import the valid records.
+
+Step 9: Show a summary.
+
+The summary must include:
+- Number of rows read.
+- Number of records successfully imported.
+- Number of records skipped.
+- Number of invalid records.
+- Number of possible duplicates.
+
+7.3 COLUMN MAPPING
+
+Support common variations in column names.
+
+Examples:
+- Business Name.
+- Company Name.
+- Place Name.
+- Phone.
+- Telephone.
+- Mobile.
+- Email.
+- Website.
+- Google Maps URL.
+- Google Maps Profile.
+- Address.
+- Category.
+- City.
+- District.
+
+Allow users to map spreadsheet columns manually when automatic mapping is incorrect.
+
+Do not silently discard columns containing potentially useful data.
+
+Allow users to preserve unmapped columns in an import review or custom-data field where appropriate.
+
+7.4 DUPLICATE DETECTION
+
+Use configurable duplicate detection based on available data.
+
+Potential matching fields:
+- Google Maps profile URL or stable place ID.
+- Business website domain.
+- Normalized phone number.
+- Business name combined with locality.
+
+Do not rely on business name alone when deciding that two records are duplicates.
+
+Show possible duplicates for review.
+
+Allow the user to:
+- Skip the duplicate.
+- Import as a separate record.
+- Update the existing record when permitted.
+
+Do not merge records automatically without a clear rule or user confirmation.
+
+7.5 EXPORT FORMATS
+
+Support:
+- CSV.
+- XLSX.
+
+Create the following export actions:
+
+- Export All Leads.
+- Export Selected Leads.
+- Export Current Filter Results.
+- Export by Location.
+- Export by Category.
+- Export by Status.
+- Export by Outreacher.
+- Export by Date Range.
+- Export Projects.
+- Export Outreacher Performance.
+- Export Developer Workloads.
+
+Exports must respect the current user's permissions.
+
+The export must contain the actual database data, not sample data.
+
+7.6 EXPORT COLUMN SELECTION
+
+Allow me to choose which columns to include.
+
+Example:
+
+Business Name
+Phone Number
+Email
+Google Maps Profile
+Website
+Category
+City
+Locality
+Lead Status
+
+Preserve phone numbers as text where appropriate to avoid losing leading zeros or country codes.
+
+Use clear column headers.
+
+Escape CSV fields correctly.
+
+Protect spreadsheet exports from formula injection by safely handling untrusted values that begin with spreadsheet formula characters.
+
+Use a meaningful filename.
+
+Example:
+
+jewellery_stores_mumbai_2026-10-26.xlsx
+
+Show a success or error message when the export completes.
+
+==================================================
+8. MODULE FOUR: OUTREACHER MANAGEMENT
+==================================================
+
+Create a complete management page for sales outreachers.
+
+Outreachers contact potential clients and sell website development services.
+
+8.1 OUTREACHER PROFILES
+
+Each profile should include:
+
+- Full name.
+- Email.
+- Phone number.
+- Role.
+- Languages spoken.
+- Start date.
+- Account status.
+- Assigned locations.
+- Assigned categories.
+- Commission structure.
+- Notes.
+
+Do not store plain-text passwords.
+
+Use the authentication system for login credentials.
+
+8.2 LEAD ASSIGNMENT
+
+Allow administrators to assign leads to outreachers.
+
+Support:
+- Assigning one lead.
+- Assigning multiple leads.
+- Reassigning leads.
+- Filtering leads by assignee.
+- Viewing unassigned leads.
+- Assigning leads by location.
+- Assigning leads by category.
+- Setting follow-up priorities.
+
+Before bulk reassignment, show a confirmation dialog.
+
+Track assignment history.
+
+8.3 OUTREACH ACTIVITY
+
+Track:
+- Calls made.
+- Emails sent, when verified or recorded.
+- Messages sent, when verified or recorded.
+- Responses received.
+- Interested prospects.
+- Meetings booked.
+- Proposals sent.
+- Deals won.
+- Deals lost.
+
+Distinguish manually recorded activity from activity verified through an external integration.
+
+Do not count an attempted call as a successful conversation unless the recorded outcome supports that conclusion.
+
+8.4 PERFORMANCE DASHBOARD
+
+Display:
+- Leads assigned.
+- Leads contacted.
+- Follow-ups due.
+- Interested prospects.
+- Meetings booked.
+- Deals won.
+- Recorded deal revenue.
+- Commission earned.
+- Commission paid.
+- Conversion rates.
+
+Allow filtering by date range.
+
+Calculate conversion rates using clearly defined denominators.
+
+Avoid dividing by zero and display an appropriate empty state when no data is available.
+
+8.5 COMMISSION CALCULATION
+
+Support:
+- Fixed commission per successful deal.
+- Percentage of the deal value.
+- Individually configured commission rules.
+
+Example:
+
+Commission model: Fixed amount.
+Commission per qualifying deal: ₹1,000.
+Qualifying won deals: 5.
+Commission earned: ₹5,000.
+
+Only count a deal once.
+
+Do not create duplicate commission entries when a deal is edited or the dashboard is refreshed.
+
+Track:
+- Commission amount.
+- Related deal.
+- Outreacher.
+- Calculation basis.
+- Status: Pending, Approved, Paid, or Cancelled.
+- Payment date.
+- Administrator notes.
+
+Use a transaction-safe backend process for commission creation and updates.
+
+Do not allow an outreacher to approve or pay their own commission.
+
+==================================================
+9. MODULE FIVE: DEVELOPER MANAGEMENT
+==================================================
+
+Create a dedicated page to manage the website developers who complete projects for the agency.
+
+9.1 DEVELOPER PROFILES
+
+Each developer should have:
+
+- Name.
+- Email.
+- Phone number.
+- Skills.
+- Specialities.
+- Employment or contractor status.
+- Account status.
+- Agreed payment arrangements.
+- Assigned projects.
+- Active workload.
+- Completed projects.
+- Notes.
+
+9.2 PROJECT ASSIGNMENT
+
+Allow administrators to assign a project to one or more developers.
+
+Support:
+- Assigning a developer.
+- Changing the assignment.
+- Assigning collaborators.
+- Setting deadlines.
+- Recording project requirements.
+- Adding internal notes.
+- Adding client feedback.
+- Tracking revisions.
+
+Preserve the assignment history.
+
+9.3 DEVELOPER WORKLOAD
+
+Display:
+- Active projects.
+- Projects awaiting client feedback.
+- Projects in development.
+- Overdue projects.
+- Completed projects.
+- Upcoming deadlines.
+- Recorded developer payments.
+
+Allow filtering by developer and project status.
+
+9.4 PROJECT TASKS
+
+Each project can contain tasks.
+
+Task fields:
+- Task title.
+- Description.
+- Assigned developer.
+- Status.
+- Priority.
+- Due date.
+- Completion date.
+
+Task statuses:
+- To Do.
+- In Progress.
+- Blocked.
+- In Review.
+- Completed.
+
+Provide a task list and a Kanban board.
+
+==================================================
+10. MODULE SIX: WEBSITE PROJECT MANAGEMENT
+==================================================
+
+Create a Projects module connected to the CRM.
+
+A project should normally be linked to a won deal or an existing client.
+
+However, administrators should be able to create legitimate projects manually when necessary.
+
+10.1 PROJECT FIELDS
+
+Each project should contain:
+
+- Project ID.
+- Project name.
+- Related client.
+- Related deal, if applicable.
+- Assigned developer or developers.
+- Start date.
+- Due date.
+- Project status.
+- Priority.
+- Project requirements.
+- Client payment amount.
+- Developer cost.
+- Other project expenses.
+- Amount received.
+- Amount outstanding.
+- Delivery date.
+- Notes.
+
+10.2 PROJECT WORKFLOW
+
+Default statuses:
+
+1. Not Started.
+2. Requirements Collected.
+3. Design in Progress.
+4. Development in Progress.
+5. Client Review.
+6. Revisions.
+7. Completed.
+8. Delivered.
+9. On Hold.
+10. Cancelled.
+
+Allow authorized administrators to configure statuses.
+
+When the project status changes, record the change in its activity history.
+
+Do not automatically mark a project as paid just because it is completed.
+
+Project completion, client payment, and delivery are different concepts and must be tracked separately.
+
+10.3 DEADLINE TRACKING
+
+Show:
+- Upcoming deadlines.
+- Overdue projects.
+- Projects due today.
+- Projects due this week.
+- Completed projects.
+
+Highlight overdue projects.
+
+Use the correct timezone and date handling.
+
+Provide filters by project status, developer, client, and deadline.
+
+==================================================
+11. MODULE SEVEN: FINANCIAL TRACKING
+==================================================
+
+Create basic project-level financial management.
+
+This is not intended to be a complete accounting system.
+
+Track:
+- Agreed client price.
+- Amount received from the client.
+- Outstanding client balance.
+- Developer cost.
+- Amount paid to developers.
+- Outstanding developer balance.
+- Other project expenses.
+- Outreacher commission.
+- Project profit.
+
+Use INR (₹) as the default currency.
+
+Allow the administrator to configure a different currency where needed.
+
+Do not mix currencies in a total unless a valid conversion mechanism is configured.
+
+11.1 FINANCIAL CALCULATIONS
+
+Project revenue:
+The agreed project price.
+
+Cash collected:
+The total of recorded client payments.
+
+Outstanding client balance:
+Agreed project price minus valid client payments, subject to applicable refunds and adjustments.
+
+Developer cost:
+The agreed developer cost.
+
+Developer payments:
+The total of recorded developer payments.
+
+Outstanding developer balance:
+Agreed developer cost minus valid developer payments.
+
+Estimated project profit:
+Agreed project price minus developer cost, other project expenses, and applicable commission.
+
+Actual cash flow and estimated profit must be presented as different concepts.
+
+Do not label revenue as profit.
+
+11.2 PAYMENT RECORDS
+
+Each payment record should contain:
+- Related project or deal.
+- Payer or payee.
+- Payment amount.
+- Currency.
+- Payment date.
+- Payment type.
+- Payment status.
+- Reference.
+- Notes.
+
+Prevent invalid negative payments unless explicitly represented as a refund or adjustment.
+
+Avoid duplicate payment records.
+
+Never pretend to process a real payment. This module only records payments unless a properly configured payment integration is added.
+
+==================================================
+12. MODULE EIGHT: DASHBOARD
+==================================================
+
+Create a functional overview dashboard.
+
+The dashboard must use real database records.
+
+Do not populate it with fake revenue, fake clients, or randomly generated performance statistics.
+
+If the database is empty, show zero values and useful instructions.
+
+12.1 DASHBOARD METRICS
+
+Display:
+
+- Total geographical locations.
+- Saved target locations.
+- Total leads.
+- Leads without websites.
+- Leads not contacted.
+- Leads requiring follow-up.
+- Interested leads.
+- Won deals.
+- Active projects.
+- Overdue projects.
+- Recorded client revenue.
+- Client payments received.
+- Outstanding client balances.
+- Developer costs.
+- Recorded project expenses.
+- Estimated project profit.
+- Pending outreach commissions.
+
+12.2 CHARTS
+
+Create charts for:
+- Leads created over time.
+- Leads by category.
+- Leads by location.
+- Leads by status.
+- Deals won over time.
+- Revenue over time.
+- Project status distribution.
+- Outreacher performance.
+- Developer workload.
+
+Charts must use actual database data and respect the selected reporting period.
+
+12.3 QUICK ACTIONS
+
+Add:
+- Add Lead.
+- Add Location to Saved Targets.
+- Import Spreadsheet.
+- Assign Leads.
+- Add Project.
+- Add Team Member.
+
+Each action must open the correct form or workflow.
+
+12.4 RECENT ACTIVITY
+
+Display a chronological feed of meaningful activities:
+
+- New lead added.
+- Lead assigned.
+- Call recorded.
+- Deal won.
+- Project created.
+- Developer assigned.
+- Project completed.
+- Payment recorded.
+
+Only show records the current user is authorized to view.
+
+==================================================
+13. MODULE NINE: REPORTS AND EXPORTS
+==================================================
+
+Create a dedicated reporting page.
+
+Allow the administrator to generate reports for:
+
+- Leads by geographical location.
+- Leads by business category.
+- Leads without websites.
+- Leads by status.
+- Outreacher performance.
+- Won deals.
+- Revenue and payments.
+- Project profitability.
+- Developer workload.
+- Overdue projects.
+- Commission liabilities.
+
+Allow filtering by date range, location, category, team member, and status where relevant.
+
+Allow reports to be exported to CSV or XLSX.
+
+All reports must be generated from real records.
+
+Provide meaningful empty states when no records match the selected filters.
+
+==================================================
+14. MODULE TEN: GLOBAL SEARCH
+==================================================
+
+Create a global search in the top navigation.
+
+Allow searching across authorized records:
+- Businesses.
+- Contacts.
+- Locations.
+- Outreachers.
+- Developers.
+- Projects.
+
+Use appropriate matching and result grouping.
+
+For example, searching for "Whitefield" should display the matching location and relevant leads in that location.
+
+Clicking a result should navigate to its detail page.
+
+Do not search through records that the current user is not authorized to see.
+
+==================================================
+15. DATABASE ARCHITECTURE
+==================================================
+
+Design a normalized PostgreSQL database.
+
+Create tables similar to the following. Adjust the schema when necessary to ensure correct relationships and security.
+
+A. PROFILES
+
+Fields:
+- id.
+- auth_user_id.
+- full_name.
+- email.
+- role.
+- account_status.
+- created_at.
+- updated_at.
+
+B. LOCATIONS
+
+Fields:
+- id.
+- parent_location_id.
+- name.
+- normalized_name.
+- location_type.
+- administrative_level.
+- country_code.
+- external_geographic_id.
+- latitude.
+- longitude.
+- data_source.
+- created_at.
+- updated_at.
+
+C. SAVED_LOCATIONS
+
+Fields:
+- id.
+- workspace_id.
+- location_id.
+- status.
+- priority.
+- notes.
+- target_lead_count.
+- last_researched_at.
+- created_by.
+- created_at.
+- updated_at.
+
+D. BUSINESS_CATEGORIES
+
+Fields:
+- id.
+- name.
+- description.
+- is_active.
+- created_at.
+
+E. LEADS
+
+Fields:
+- id.
+- workspace_id.
+- business_name.
+- contact_name.
+- phone.
+- email.
+- website_url.
+- google_maps_url.
+- external_place_id.
+- category_id.
+- country_code.
+- state_location_id.
+- district_location_id.
+- city_location_id.
+- locality_location_id.
+- address.
+- website_status.
+- source.
+- status.
+- priority.
+- assigned_outreacher_id.
+- estimated_deal_value.
+- agreed_deal_value.
+- next_follow_up_at.
+- last_contacted_at.
+- notes.
+- created_by.
+- created_at.
+- updated_at.
+- archived_at.
+
+F. LEAD_ACTIVITIES
+
+Fields:
+- id.
+- workspace_id.
+- lead_id.
+- user_id.
+- activity_type.
+- outcome.
+- notes.
+- occurred_at.
+- next_follow_up_at.
+- created_at.
+
+G. LEAD_ASSIGNMENTS
+
+Fields:
+- id.
+- workspace_id.
+- lead_id.
+- assigned_user_id.
+- assigned_by.
+- assigned_at.
+- unassigned_at.
+- notes.
+
+H. DEALS
+
+Fields:
+- id.
+- workspace_id.
+- lead_id.
+- client_id or another well-defined client relationship.
+- deal_name.
+- status.
+- agreed_value.
+- currency.
+- won_at.
+- lost_at.
+- created_at.
+- updated_at.
+
+Design the relationship between leads, clients, and deals carefully. Do not create redundant client records every time a lead becomes a customer.
+
+I. COMMISSIONS
+
+Fields:
+- id.
+- workspace_id.
+- deal_id.
+- outreacher_id.
+- commission_type.
+- commission_rate.
+- amount.
+- currency.
+- status.
+- approved_by.
+- approved_at.
+- paid_at.
+- created_at.
+- updated_at.
+
+J. DEVELOPERS
+
+Use profiles and role assignments where appropriate instead of duplicating authentication information.
+
+Store additional developer-specific fields in a suitable table.
+
+K. PROJECTS
+
+Fields:
+- id.
+- workspace_id.
+- client_id.
+- deal_id.
+- project_name.
+- description.
+- status.
+- priority.
+- start_date.
+- due_date.
+- completed_at.
+- delivered_at.
+- agreed_price.
+- currency.
+- agreed_developer_cost.
+- notes.
+- created_by.
+- created_at.
+- updated_at.
+
+L. PROJECT_ASSIGNMENTS
+
+Fields:
+- id.
+- project_id.
+- developer_id.
+- assigned_by.
+- assigned_at.
+- unassigned_at.
+
+M. PROJECT_TASKS
+
+Fields:
+- id.
+- project_id.
+- title.
+- description.
+- status.
+- priority.
+- assigned_developer_id.
+- due_date.
+- completed_at.
+- created_at.
+- updated_at.
+
+N. PROJECT_EXPENSES
+
+Fields:
+- id.
+- project_id.
+- expense_type.
+- description.
+- amount.
+- currency.
+- incurred_at.
+- created_at.
+
+O. PAYMENTS
+
+Fields:
+- id.
+- workspace_id.
+- project_id.
+- deal_id.
+- payment_direction.
+- payment_type.
+- amount.
+- currency.
+- status.
+- paid_at.
+- reference.
+- notes.
+- created_by.
+- created_at.
+
+P. IMPORT_JOBS
+
+Fields:
+- id.
+- workspace_id.
+- filename.
+- import_type.
+- status.
+- rows_read.
+- rows_imported.
+- rows_skipped.
+- rows_failed.
+- created_by.
+- created_at.
+- completed_at.
+
+Q. AUDIT_LOGS
+
+Fields:
+- id.
+- workspace_id.
+- actor_user_id.
+- action.
+- entity_type.
+- entity_id.
+- details.
+- created_at.
+
+R. WORKSPACES
+
+If the application supports workspaces, ensure every business record is associated with the appropriate workspace and enforce isolation between workspaces.
+
+Create appropriate:
+- Foreign keys.
+- Unique constraints.
+- Indexes.
+- Check constraints.
+- Database policies.
+- Timestamps.
+- Cascading behavior.
+
+Use transactions for operations that must succeed or fail together.
+
+Use appropriate indexes for frequent searches and filters.
+
+Do not implement every business rule exclusively in React.
+
+Implement critical validation and authorization in the database or trusted backend.
+
+Document any schema changes from this proposed design.
+
+==================================================
+16. SECURITY AND DATA INTEGRITY
+==================================================
+
+Implement security from the beginning.
+
+Requirements:
+
+- Supabase Row Level Security.
+- Workspace isolation where applicable.
+- Role-based access control.
+- Secure authentication.
+- No service-role keys in frontend bundles.
+- Server-side validation for privileged operations.
+- Protection against unauthorized record modification.
+- Safe spreadsheet import processing.
+- Safe spreadsheet exports.
+- URL validation.
+- Proper error handling.
+- Audit logs for important administrative changes.
+- No plain-text password storage.
+- No hardcoded secrets.
+- No unrestricted public access to business data.
+
+Do not assume that knowing a record's ID grants permission to access it.
+
+When implementing delete operations, check relationships and permissions.
+
+Use archival or soft deletion where appropriate.
+
+If the application has no configured Supabase credentials, provide a clear setup screen and configuration instructions rather than falsely claiming that data has been saved.
+
+==================================================
+17. PERFORMANCE AND SCALABILITY
+==================================================
+
+Design the application for thousands of leads and a large geographical database.
+
+Requirements:
+
+- Server-side pagination for large tables.
+- Indexed search fields.
+- Efficient database queries.
+- Debounced search.
+- Lazy loading of child locations.
+- Batch imports.
+- Import progress indicators.
+- Avoid fetching the entire locations database when expanding a single branch.
+- Avoid unnecessary rerenders.
+- Handle API errors gracefully.
+- Cache appropriate geographical reference data when safe.
+- Provide useful loading states.
+
+When importing a large geographical dataset, use a backend or command-line import utility instead of trying to process every record in a single browser request.
+
+Do not block the entire interface while a large import is running.
+
+==================================================
+18. SETTINGS
+==================================================
+
+Create a settings page with sections for:
+
+A. GENERAL SETTINGS
+- Agency name.
+- Logo.
+- Default currency.
+- Timezone.
+- Date format.
+
+B. BUSINESS CATEGORIES
+- Create category.
+- Edit category.
+- Archive category.
+
+Examples:
+- Jewellery Stores.
+- Photography Studios.
+- Interior Designers.
+- Furniture Stores.
+- Car Dealerships.
+- SaaS Startups.
+- Coaches and Consultants.
+- Ecommerce Brands.
+- Marketing Agencies.
+- Other.
+
+C. LEAD SETTINGS
+- Configure lead statuses.
+- Configure priorities.
+- Configure website-status options.
+
+D. PROJECT SETTINGS
+- Configure project statuses.
+- Configure task priorities.
+
+E. COMMISSION SETTINGS
+- Configure default commission rules.
+
+F. TEAM SETTINGS
+- View team members.
+- Manage roles.
+- Manage authorized access.
+
+G. DATA MANAGEMENT
+- Import geographical datasets.
+- View import history.
+- Export business records.
+- View database configuration status.
+
+Never expose private credentials on the settings page.
+
+==================================================
+19. ERROR HANDLING AND EMPTY STATES
+==================================================
+
+The application must handle:
+
+- Database connection failures.
+- Authentication errors.
+- Invalid form data.
+- Failed imports.
+- Duplicate records.
+- Invalid spreadsheet formats.
+- Permission errors.
+- Missing geographical data.
+- Failed exports.
+- Network timeouts.
+- Invalid URLs.
+- Deleted or archived records.
+
+Display clear, actionable error messages.
+
+Do not silently swallow important errors.
+
+Do not display a success message unless the operation actually succeeded.
+
+When there are no leads, show a useful empty state with options to add a lead or import a spreadsheet.
+
+When there are no saved locations, explain how to browse and save locations.
+
+When the database is unavailable, explain that the operation could not be completed.
+
+Do not show fabricated data to make the dashboard look populated.
+
+==================================================
+20. TESTING REQUIREMENTS
+==================================================
+
+Test the important application workflows.
+
+At minimum, verify:
+
+TEST 1: LOCATION SELECTION
+
+- Search for a country.
+- Expand its administrative divisions.
+- Open a city.
+- Select a locality.
+- Save it.
+- Refresh the page.
+- Verify that the saved location remains available.
+
+TEST 2: LEAD MANAGEMENT
+
+- Create a lead.
+- Edit the lead.
+- Change its status.
+- Add an activity.
+- Refresh the page.
+- Verify that the changes persisted.
+
+TEST 3: LOCATION FILTERING
+
+- Create leads in two different locations.
+- Filter by one location.
+- Verify that only matching leads appear.
+
+TEST 4: SPREADSHEET IMPORT
+
+- Import a valid CSV file.
+- Map its columns.
+- Review duplicates.
+- Confirm the import.
+- Verify the imported records in the CRM.
+
+TEST 5: SPREADSHEET EXPORT
+
+- Select several leads.
+- Export them as XLSX.
+- Open the generated file.
+- Verify that the file contains the selected records and correct columns.
+
+TEST 6: OUTREACHER ASSIGNMENT
+
+- Create an outreacher.
+- Assign leads.
+- Record contact activity.
+- Verify that the dashboard reflects the recorded activities.
+
+TEST 7: COMMISSION CALCULATION
+
+- Create a qualifying won deal.
+- Calculate its commission.
+- Verify that the commission is recorded exactly once.
+- Verify that the correct user can approve or pay it.
+
+TEST 8: DEVELOPER PROJECT
+
+- Create a project.
+- Assign a developer.
+- Update its status.
+- Record a payment.
+- Verify that the project and financial records persist.
+
+TEST 9: PERMISSIONS
+
+- Sign in as an outreacher.
+- Attempt to access a restricted administrative record.
+- Verify that access is denied by the actual authorization mechanism.
+
+TEST 10: DASHBOARD
+
+- Create sample test records in a test environment.
+- Verify that dashboard metrics reflect the records.
+- Remove the test records.
+- Verify that the dashboard returns to the appropriate empty state.
+
+Do not use production business data for automated destructive tests.
+
+Fix important errors discovered during testing.
+
+==================================================
+21. IMPLEMENTATION INSTRUCTIONS
+==================================================
+
+Follow this implementation order.
+
+PHASE 1: PROJECT FOUNDATION
+
+- Inspect the current project structure.
+- Identify the existing framework and dependencies.
+- Establish the application layout.
+- Configure TypeScript and styling.
+- Create reusable UI components.
+- Configure routing.
+- Configure environment variables.
+- Set up the Supabase client.
+- Create a clear project structure.
+
+PHASE 2: DATABASE
+
+- Design the database schema.
+- Create SQL migrations.
+- Create foreign keys and indexes.
+- Configure Row Level Security.
+- Configure authentication and roles.
+- Implement secure database access functions.
+- Document the initial setup process.
+
+PHASE 3: LOCATIONS
+
+- Create the location browser.
+- Implement hierarchical search.
+- Implement expandable location trees.
+- Implement location selection.
+- Implement saved locations.
+- Create the geographic import utility.
+- Verify persistence.
+
+PHASE 4: CRM
+
+- Implement lead creation and editing.
+- Implement the lead table.
+- Implement filters.
+- Implement lead details.
+- Implement activity history.
+- Implement assignment.
+- Implement archiving.
+
+PHASE 5: IMPORTS AND EXPORTS
+
+- Implement CSV parsing.
+- Implement XLSX parsing.
+- Implement column mapping.
+- Implement validation.
+- Implement duplicate review.
+- Implement CSV export.
+- Implement XLSX export.
+- Test actual downloaded files.
+
+PHASE 6: OUTREACHERS
+
+- Implement team profiles.
+- Implement lead assignments.
+- Implement activity tracking.
+- Implement performance metrics.
+- Implement commission calculations.
+
+PHASE 7: DEVELOPERS AND PROJECTS
+
+- Implement developer profiles.
+- Implement project creation.
+- Implement assignments.
+- Implement tasks.
+- Implement deadlines.
+- Implement project status history.
+
+PHASE 8: FINANCIAL TRACKING
+
+- Implement payment records.
+- Implement developer-cost tracking.
+- Implement project expenses.
+- Implement outstanding balances.
+- Implement profit calculations.
+
+PHASE 9: DASHBOARD AND REPORTS
+
+- Connect dashboard metrics to real data.
+- Add charts.
+- Add reports.
+- Implement exports.
+- Verify calculations.
+
+PHASE 10: TESTING AND FINALIZATION
+
+- Test all major workflows.
+- Fix TypeScript errors.
+- Fix build errors.
+- Fix runtime errors.
+- Verify database operations.
+- Verify permissions.
+- Test responsive layouts.
+- Document deployment.
+
+Do not stop after building Phase 1 or after generating a visually attractive dashboard.
+
+Continue implementing the core features and connecting the modules.
+
+If the project is too large to implement in one response, divide the implementation into manageable stages, preserve the existing working code, and clearly state which functionality is complete and which remains unfinished.
+
+Never claim that a feature is complete unless its essential functionality has been implemented and verified.
+
+==================================================
+22. CODE QUALITY
+==================================================
+
+Write maintainable, modular code.
+
+Use:
+- Reusable components.
+- Typed data models.
+- Shared validation utilities.
+- Consistent naming.
+- Separation of presentation and business logic.
+- Centralized error handling.
+- Clear database access layers.
+- Appropriate React hooks.
+- Proper TypeScript types.
+
+Avoid:
+- One enormous component containing the entire application.
+- Duplicated business logic.
+- Unnecessary use of any.
+- Hardcoded fake records.
+- Fake authentication.
+- Fake database operations.
+- Placeholder buttons.
+- Unused dependencies.
+- Ignored TypeScript errors.
+- Silent exception handling.
+
+Use mock data only in isolated development fixtures or automated tests, and never confuse it with real production data.
+
+==================================================
+23. DEFINITION OF DONE
+==================================================
+
+The application is not complete simply because all the pages exist.
+
+The essential acceptance criteria are:
+
+1. The application launches successfully.
+2. Users can authenticate.
+3. Authorized users can access the correct modules.
+4. Geographical locations can be imported into the database.
+5. Locations can be searched and expanded.
+6. Locations can be selected and saved.
+7. Saved locations persist after refresh and a new login.
+8. Leads can be created, edited, filtered, and archived.
+9. Leads can be associated with geographical locations.
+10. CSV files can be imported through a review workflow.
+11. XLSX files can be imported through a review workflow.
+12. Selected records can be exported as CSV.
+13. Selected records can be exported as XLSX.
+14. Outreachers can be managed and assigned leads.
+15. Contact activities are recorded persistently.
+16. Commission calculations work correctly.
+17. Developers can be managed.
+18. Projects can be created and assigned.
+19. Project statuses and deadlines persist.
+20. Payment records can be managed.
+21. Financial calculations use real records.
+22. Dashboard metrics reflect actual data.
+23. Database permissions are enforced.
+24. Errors are handled appropriately.
+25. No important feature is represented only by a non-functional UI control.
+
+==================================================
+24. FINAL INSTRUCTIONS TO THE AI CODING AGENT
+==================================================
+
+Begin by examining the existing project files and available development environment.
+
+Do not overwrite working project code without understanding its purpose.
+
+First, establish the application architecture and database design.
+
+Then implement the application in the order described above.
+
+Make sensible decisions without repeatedly asking me questions about ordinary implementation details.
+
+If an important external dependency is missing, such as Supabase credentials or a geographical dataset, build the appropriate integration and explain exactly how to configure it.
+
+If an external service is unavailable, do not fabricate its results.
+
+Prefer a working implementation of the core workflow over an elaborate but non-functional interface.
+
+After each major phase:
+- Check the code for errors.
+- Verify the relevant workflow.
+- Preserve previously working functionality.
+- Explain any required configuration.
+- Continue to the next phase.
+
+When finished, provide:
+1. A summary of the implemented features.
+2. The project directory structure.
+3. Database setup instructions.
+4. Required environment variables.
+5. Instructions for importing geographical data.
+6. Instructions for running the application locally.
+7. Deployment instructions.
+8. A list of integrations that still require credentials.
+9. A list of any incomplete features.
+10. The results of the tests that were actually performed.
+
+The final product should be a professional, reliable, dark-mode Agency Command Center that I can use to manage geographical targeting, business leads, outreachers, developers, website projects, financial records, and spreadsheet exports from one place.
+
+Start implementing the actual application now.
