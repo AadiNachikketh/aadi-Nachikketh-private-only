@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { auth, googleAuthProvider } from '../src/lib/firebase';
-import { supabase } from '../src/supabaseClient.js';
+import { supabase, getOAuthRedirectUrl } from '../src/supabaseClient.js';
 import { CrmState, GeoLocation, LeadRecord } from '../src/types/crm';
 import {
   loadSupabaseCrmState,
@@ -198,7 +198,7 @@ export default function AgencyCommandCenterPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+          redirectTo: getOAuthRedirectUrl(),
         },
       });
       if (error) {

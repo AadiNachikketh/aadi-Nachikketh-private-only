@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '../../src/supabaseClient.js';
+import { supabase, getOAuthRedirectUrl } from '../../src/supabaseClient.js';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -25,7 +25,24 @@ export default function SignInPage() {
         setSignupSuccess(true);
       }
     }
-  }, []);
+
+    // If user returns from Google OAuth with a valid session, go straight to Home ("/")
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace('/');
+      }
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        router.replace('/');
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [router]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +73,7 @@ export default function SignInPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+        redirectTo: getOAuthRedirectUrl(),
       },
     });
     if (error) {
