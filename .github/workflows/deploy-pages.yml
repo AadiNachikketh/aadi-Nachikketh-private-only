@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -25,14 +25,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+
+      - name: Sanitize package.json for public npm registry
+        run: |
+          node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            delete pkg.dependencies["@google/genai"];
+            delete pkg.dependencies["drizzle-kit"];
+            delete pkg.dependencies["drizzle-orm"];
+            delete pkg.dependencies["pg"];
+            delete pkg.dependencies["@types/pg"];
+            delete pkg.dependencies["firebase-admin"];
+            delete pkg.devDependencies["firebase-tools"];
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
+          '
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Prepare Next.js for static GitHub Pages export
         run: |
-          rm -rf app/api
+          rm -rf app/api src/db src/lib/firebase-admin.ts
+          if [ ! -f firebase-applet-config.json ]; then
+            echo '{"apiKey":"demo-key","authDomain":"demo.firebaseapp.com","projectId":"demo-project","appId":"1:000:web:000"}' > firebase-applet-config.json
+          fi
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
           cat <<EOF > next.config.ts
           import type { NextConfig } from 'next';
@@ -54,10 +71,21 @@ jobs:
           touch out/.nojekyll
           cp out/index.html out/404.html
 
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        continue-on-error: true
+
       - name: Upload artifact for GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./out
+
+      - name: Deploy to gh-pages branch (fallback for branch-based Pages)
+        uses: peaceiris/actions-gh-pages@v4
+        continue-on-error: true
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out
 
   deploy:
     environment:
@@ -69,3 +97,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
