@@ -12,6 +12,7 @@
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@hookform/resolvers": "^5.2.1",
+    "@supabase/supabase-js": "^2.118.0",
     "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.23.1",
     "autoprefixer": "^10.4.21",

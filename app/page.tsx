@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   MapPin,
@@ -22,11 +23,12 @@ import {
 } from 'lucide-react';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { auth, googleAuthProvider } from '../src/lib/firebase';
+import { supabase } from '../src/supabaseClient.js';
 import { CrmState, GeoLocation, LeadRecord } from '../src/types/crm';
 import {
-  getClientFallbackState,
-  executeClientFallbackMutation,
-} from '../src/lib/client-fallback-store';
+  loadSupabaseCrmState,
+  mutateSupabaseCrmState,
+} from '../src/lib/supabase-crm';
 import DashboardModule from '../src/components/DashboardModule';
 import LocationsModule from '../src/components/LocationsModule';
 import LeadsCrmModule from '../src/components/LeadsCrmModule';
@@ -82,15 +84,17 @@ const DEFAULT_PROJECT_STATUSES = [
 ];
 
 export default function AgencyCommandCenterPage() {
+  const router = useRouter();
   const [activeModule, setActiveModule] = useState<ModuleKey>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Firebase Auth & Role state
+  // Supabase & Firebase Auth & Role state
+  const [authChecked, setAuthChecked] = useState(false);
+  const [supabaseEmail, setSupabaseEmail] = useState<string | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
-  const [idToken, setIdToken] = useState<string>('demo-token');
   const [actorRole, setActorRole] = useState<'admin' | 'outreacher' | 'developer'>('admin');
 
-  // PostgreSQL CRM State
+  // Supabase CRM State
   const [crmState, setCrmState] = useState<CrmState | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -123,125 +127,95 @@ export default function AgencyCommandCenterPage() {
     }, 4500);
   }, []);
 
-  const fetchCrmData = useCallback(async (tokenToUse: string) => {
+  const fetchCrmData = useCallback(async () => {
     try {
-      const res = await fetch('/api/crm', {
-        headers: {
-          Authorization: `Bearer ${tokenToUse}`,
-        },
-      });
-      const text = await res.text();
-      if (!res.ok || !text || !text.trim() || text.trim().startsWith('<')) {
-        setCrmState(getClientFallbackState());
-        return;
-      }
-      const data = JSON.parse(text) as CrmState;
+      const data = await loadSupabaseCrmState();
       setCrmState(data);
-    } catch {
-      setCrmState(getClientFallbackState());
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchCrmData('demo-token');
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user);
-      if (user) {
-        const token = await user.getIdToken();
-        setIdToken(token);
-        fetchCrmData(token);
+    let isMounted = true;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
+      if (!session) {
+        router.replace('/login');
+        return;
+      }
+      setSupabaseEmail(session.user?.email || null);
+      setAuthChecked(true);
+      fetchCrmData();
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+      if (!session) {
+        router.replace('/login');
+      } else {
+        setSupabaseEmail(session.user?.email || null);
+        setAuthChecked(true);
+        fetchCrmData();
       }
     });
-    return () => unsub();
-  }, [fetchCrmData]);
+
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
+    });
+    return () => {
+      isMounted = false;
+      authListener.subscription.unsubscribe();
+      unsub();
+    };
+  }, [fetchCrmData, router]);
 
   const handleMutate = useCallback(
     async (action: string, payload: Record<string, unknown>, successMsg?: string) => {
       try {
-        const res = await fetch('/api/crm', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            action,
-            payload,
-            actorRole,
-            actorName: firebaseUser?.displayName || 'Aaditya Verma',
-          }),
-        });
-        const text = await res.text();
-        if (res.status === 404 || res.status === 405 || text.trim().startsWith('<')) {
-          const fallbackData = executeClientFallbackMutation(
-            action,
-            payload,
-            actorRole,
-            firebaseUser?.displayName || 'Aaditya Verma'
-          );
-          setCrmState({ ...fallbackData });
-          if (successMsg) showToast('success', successMsg);
-          return;
-        }
-        if (!text || !text.trim()) {
-          throw new Error('Empty response received from server');
-        }
-        const data = JSON.parse(text) as CrmState & { error?: string };
-        if (!res.ok) {
-          throw new Error(data.error || 'Operation failed');
-        }
-        setCrmState(data);
+        const data = await mutateSupabaseCrmState(
+          action,
+          payload,
+          actorRole,
+          supabaseEmail || firebaseUser?.displayName || 'Aaditya Verma'
+        );
+        setCrmState({ ...data });
         if (successMsg) {
           showToast('success', successMsg);
         }
       } catch (err: unknown) {
-        // If fetch itself failed (offline or static host), execute in client fallback store
-        if (err instanceof TypeError) {
-          const fallbackData = executeClientFallbackMutation(
-            action,
-            payload,
-            actorRole,
-            firebaseUser?.displayName || 'Aaditya Verma'
-          );
-          setCrmState({ ...fallbackData });
-          if (successMsg) showToast('success', successMsg);
-          return;
-        }
         const msg = err instanceof Error ? err.message : 'Failed to save changes';
         showToast('error', msg);
         throw err;
       }
     },
-    [idToken, actorRole, firebaseUser, showToast]
+    [actorRole, supabaseEmail, firebaseUser, showToast]
   );
 
   const handleGoogleSignIn = async () => {
     try {
-      const cred = await signInWithPopup(auth, googleAuthProvider);
-      const token = await cred.user.getIdToken();
-      setIdToken(token);
-      await handleMutate(
-        'SYNC_AUTH_USER',
-        {
-          uid: cred.user.uid,
-          email: cred.user.email,
-          fullName: cred.user.displayName || 'Agency Admin',
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
         },
-        `Signed in as ${cred.user.email}`
-      );
+      });
+      if (error) {
+        throw error;
+      }
     } catch (err: unknown) {
       showToast(
         'error',
-        err instanceof Error ? err.message : 'Google Sign-In popup closed or blocked'
+        err instanceof Error ? err.message : 'Google Sign-In failed'
       );
     }
   };
 
   const handleSignOut = async () => {
-    await signOut(auth);
-    showToast('success', 'Signed out of Google session.');
+    await supabase.auth.signOut();
+    await signOut(auth).catch(() => {});
+    router.replace('/login');
   };
 
   const outreachers = useMemo(
@@ -364,6 +338,14 @@ export default function AgencyCommandCenterPage() {
   const currentModuleTitle =
     NAV_ITEMS.find((n) => n.id === activeModule)?.label || 'Agency Command Center';
 
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-400 text-xs">
+        Checking session...
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex bg-slate-950 text-slate-100">
       {/* Left Sidebar Navigation (Section 3) */}
@@ -435,10 +417,10 @@ export default function AgencyCommandCenterPage() {
               </select>
             </div>
 
-            {firebaseUser ? (
+            {supabaseEmail || firebaseUser ? (
               <div className="flex items-center justify-between text-xs pt-1">
                 <span className="text-slate-300 truncate max-w-[140px]">
-                  {firebaseUser.email}
+                  {supabaseEmail || firebaseUser?.email}
                 </span>
                 <button
                   type="button"
