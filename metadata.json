@@ -1,0 +1,6 @@
+{
+  "name": "Agency Command Center",
+  "description": "Production CRM and operations platform for web development agencies managing geographical lead targeting, outreachers, developers, website projects, and financial profitability.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

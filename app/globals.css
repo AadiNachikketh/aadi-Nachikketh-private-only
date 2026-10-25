@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  }
+}
+
+.font-mono {
+  font-family: var(--font-mono), var(--font-sans), system-ui, -apple-system, sans-serif !important;
+  font-variant-numeric: tabular-nums;
+}
