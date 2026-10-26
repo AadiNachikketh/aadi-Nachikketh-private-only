@@ -335,28 +335,104 @@ function createDefaultStaticState(): CrmState {
   };
 }
 
-export function getClientFallbackState(): CrmState {
-  if (typeof window === 'undefined') {
-    return createDefaultStaticState();
+const STORAGE_KEY_V2 = 'agency_command_center_crm_data_v2';
+const STORAGE_KEY_V1 = 'agency_command_center_static_state_v1';
+
+let inMemoryCrmState: CrmState | null = null;
+let staticLocationsCache: GeoLocation[] | null = null;
+
+export function getCachedStaticLocations(): GeoLocation[] {
+  if (!staticLocationsCache) {
+    staticLocationsCache = buildInitialStaticLocations();
   }
+  return staticLocationsCache;
+}
+
+export function saveClientFallbackState(state: CrmState): void {
+  inMemoryCrmState = {
+    ...state,
+    locations: getCachedStaticLocations(),
+  };
+
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as CrmState;
-      if (parsed && Array.isArray(parsed.locations) && parsed.locations.length >= 300) {
-        return parsed;
+    if (typeof window !== 'undefined') {
+      // Store compact representation without serializing the massive static locations array
+      const compactPayload = {
+        users: state.users,
+        savedLocations: state.savedLocations,
+        categories: state.categories,
+        leads: state.leads,
+        activities: state.activities,
+        assignments: state.assignments,
+        deals: state.deals,
+        commissions: state.commissions,
+        projects: state.projects,
+        tasks: state.tasks,
+        payments: state.payments,
+        importJobs: state.importJobs,
+        auditLogs: state.auditLogs,
+        settings: state.settings,
+      };
+      window.localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(compactPayload));
+    }
+  } catch (err) {
+    console.warn('Failed to persist CRM state to localStorage:', err);
+  }
+}
+
+export function getClientFallbackState(): CrmState {
+  if (inMemoryCrmState && Array.isArray(inMemoryCrmState.leads)) {
+    return inMemoryCrmState;
+  }
+
+  const staticLocations = getCachedStaticLocations();
+  const defaultBase = createDefaultStaticState();
+
+  if (typeof window === 'undefined') {
+    return defaultBase;
+  }
+
+  try {
+    // 1. Try V2 compact storage
+    const rawV2 = window.localStorage.getItem(STORAGE_KEY_V2);
+    if (rawV2) {
+      const parsed = JSON.parse(rawV2);
+      if (parsed && typeof parsed === 'object') {
+        const resolved: CrmState = {
+          ...defaultBase,
+          ...parsed,
+          locations: staticLocations,
+          leads: Array.isArray(parsed.leads) ? parsed.leads : [],
+          users: Array.isArray(parsed.users) && parsed.users.length > 0 ? parsed.users : defaultBase.users,
+          categories: Array.isArray(parsed.categories) && parsed.categories.length > 0 ? parsed.categories : defaultBase.categories,
+        };
+        inMemoryCrmState = resolved;
+        return resolved;
       }
     }
-  } catch {
-    // ignore storage read error
+
+    // 2. Fallback to legacy V1 storage if migrating
+    const rawV1 = window.localStorage.getItem(STORAGE_KEY_V1);
+    if (rawV1) {
+      const parsedV1 = JSON.parse(rawV1);
+      if (parsedV1 && typeof parsedV1 === 'object') {
+        const resolvedV1: CrmState = {
+          ...defaultBase,
+          ...parsedV1,
+          locations: staticLocations,
+          leads: Array.isArray(parsedV1.leads) ? parsedV1.leads : [],
+        };
+        saveClientFallbackState(resolvedV1);
+        return resolvedV1;
+      }
+    }
+  } catch (err) {
+    console.warn('Error reading CRM fallback state from localStorage:', err);
   }
-  const initial = createDefaultStaticState();
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-  } catch {
-    // ignore quota error
-  }
-  return initial;
+
+  inMemoryCrmState = defaultBase;
+  saveClientFallbackState(defaultBase);
+  return defaultBase;
 }
 
 export function executeClientFallbackMutation(
@@ -789,12 +865,6 @@ export function executeClientFallbackMutation(
     }
   }
 
-  try {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
-  } catch {
-    // ignore quota error
-  }
+  saveClientFallbackState(state);
   return state;
 }

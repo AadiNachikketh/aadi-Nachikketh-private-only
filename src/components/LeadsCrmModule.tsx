@@ -164,6 +164,10 @@ export default function LeadsCrmModule({
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
 
+  // Single & Bulk Delete confirmation states
+  const [leadToDelete, setLeadToDelete] = useState<LeadRecord | null>(null);
+  const [confirmClearAllOpen, setConfirmClearAllOpen] = useState(false);
+
   // Bulk Selection
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<number>>(new Set());
   const [bulkAssignUserId, setBulkAssignUserId] = useState('');
@@ -193,7 +197,7 @@ export default function LeadsCrmModule({
     assignedOutreacherId: outreachers[0]?.id || null,
     estimatedDealValue: 45000,
     agreedDealValue: 0,
-    nextFollowUpAt: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 10),
+    nextFollowUpAt: '',
     notes: '',
     tags: '',
   });
@@ -319,6 +323,41 @@ export default function LeadsCrmModule({
     () => Array.from(new Set(leads.map((l) => l.locality).filter((x): x is string => Boolean(x)))),
     [leads]
   );
+
+  const activeFilters = useMemo(() => {
+    const list: string[] = [];
+    if (searchQuery.trim()) list.push(`Search: "${searchQuery}"`);
+    if (filterCountry !== 'ALL') list.push(`Country: ${filterCountry}`);
+    if (filterState !== 'ALL') list.push(`State: ${filterState}`);
+    if (filterCity !== 'ALL') list.push(`City: ${filterCity}`);
+    if (filterLocality !== 'ALL') list.push(`Locality: ${filterLocality}`);
+    if (filterCategory !== 'ALL') list.push(`Category: ${filterCategory}`);
+    if (filterStatus !== 'ALL') list.push(`Status: ${filterStatus}`);
+    if (filterWebsiteStatus !== 'ALL') list.push(`Website: ${filterWebsiteStatus}`);
+    if (filterOutreacher !== 'ALL') {
+      const oName =
+        filterOutreacher === 'UNASSIGNED'
+          ? 'Unassigned Only'
+          : outreacherMap.get(Number(filterOutreacher)) || filterOutreacher;
+      list.push(`Outreacher: ${oName}`);
+    }
+    if (minDealValue) list.push(`Min Value: ₹${Number(minDealValue).toLocaleString('en-IN')}`);
+    if (showArchived) list.push('Viewing Archived');
+    return list;
+  }, [
+    searchQuery,
+    filterCountry,
+    filterState,
+    filterCity,
+    filterLocality,
+    filterCategory,
+    filterStatus,
+    filterWebsiteStatus,
+    filterOutreacher,
+    minDealValue,
+    showArchived,
+    outreacherMap,
+  ]);
 
   const filteredLeads = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -772,7 +811,7 @@ export default function LeadsCrmModule({
               Export Spreadsheet
             </button>
 
-            {selectedLeadIds.size > 0 && (
+            {selectedLeadIds.size > 0 ? (
               <button
                 type="button"
                 onClick={async () => {
@@ -784,12 +823,22 @@ export default function LeadsCrmModule({
                   );
                   setSelectedLeadIds(new Set());
                 }}
-                className="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                className="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-md animate-pulse"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete Selected ({selectedLeadIds.size})
+                <Trash2 className="w-4 h-4" />
+                Delete Selected Leads ({selectedLeadIds.size})
               </button>
-            )}
+            ) : leads.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setConfirmClearAllOpen(true)}
+                className="px-3 py-2 bg-slate-800/80 hover:bg-red-950/60 text-slate-400 hover:text-red-300 border border-slate-700/60 hover:border-red-500/40 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                title="Delete all leads in database"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                Delete All Leads
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -935,9 +984,9 @@ export default function LeadsCrmModule({
 
         {/* Active filter summary & Clear Filters button */}
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-          <div className="flex items-center gap-3">
-            <span className="font-mono tabular-nums">
-              Showing {filteredLeads.length} {showArchived ? 'archived' : 'active'} leads
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-mono tabular-nums font-medium text-slate-300">
+              Showing {filteredLeads.length} of {leads.length} leads {showArchived ? '(Archived)' : ''}
             </span>
             <label className="inline-flex items-center gap-1.5 cursor-pointer">
               <input
@@ -950,15 +999,61 @@ export default function LeadsCrmModule({
             </label>
           </div>
 
+          {activeFilters.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-amber-400 font-medium">
+                {activeFilters.length} filter{activeFilters.length === 1 ? '' : 's'} active
+              </span>
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="px-2.5 py-1 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 rounded text-xs font-semibold transition-colors"
+              >
+                Reset All Filters
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Active Filters List Chips */}
+        {activeFilters.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-800/60">
+            <span className="text-[11px] text-slate-500">Active Filters:</span>
+            {activeFilters.map((filt, idx) => (
+              <span
+                key={idx}
+                className="px-2 py-0.5 bg-slate-950 border border-slate-800 text-slate-300 rounded text-[11px] font-mono"
+              >
+                {filt}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Prominent Lead Alert if leads exist but are hidden by filters */}
+      {leads.length > 0 && filteredLeads.length === 0 && (
+        <div className="bg-amber-950/60 border border-amber-500/50 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-200 shadow-lg">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 animate-bounce" />
+            <div>
+              <div className="font-bold text-sm text-amber-300">
+                You have {leads.length} lead{leads.length === 1 ? '' : 's'} saved in your CRM, but 0 match your current filters.
+              </div>
+              <div className="text-xs text-amber-200/80 mt-0.5">
+                Your leads are securely saved and haven&apos;t disappeared. Reset your filters to view all leads immediately.
+              </div>
+            </div>
+          </div>
           <button
             type="button"
             onClick={clearAllFilters}
-            className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition-colors whitespace-nowrap shadow shrink-0"
           >
-            Clear Filters
+            Reset Filters &amp; View All {leads.length} Leads
           </button>
         </div>
-      </div>
+      )}
 
       {/* Bulk Action Bar when rows are checked */}
       {selectedLeadIds.size > 0 && (
@@ -1160,7 +1255,9 @@ export default function LeadsCrmModule({
                     </button>
                   </th>
                   <th className="py-3 px-3 font-medium">Follow-up</th>
-                  <th className="py-3 px-3 font-medium text-right">Actions</th>
+                  <th className="py-3 px-4 font-semibold text-right sticky right-0 bg-slate-950 text-white border-l border-slate-800 shadow-xl min-w-[200px] z-20">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/70 text-sm">
@@ -1192,20 +1289,12 @@ export default function LeadsCrmModule({
                           </button>
                           <button
                             type="button"
-                            aria-label={`Quick delete ${lead.businessName}`}
-                            onClick={async () => {
-                              await onMutate(
-                                'DELETE_LEADS',
-                                { leadIds: [lead.id] },
-                                `Deleted lead: ${lead.businessName}`
-                              );
-                              if (detailLeadId === lead.id) {
-                                setDetailLeadId(null);
-                              }
-                            }}
-                            className="px-2 py-0.5 bg-red-950/70 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 rounded text-[11px] font-medium flex items-center gap-1 shrink-0 transition-colors"
+                            aria-label={`Delete ${lead.businessName}`}
+                            title="Delete this lead"
+                            onClick={() => setLeadToDelete(lead)}
+                            className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-bold flex items-center gap-1 shrink-0 transition-colors shadow-sm"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3.5 h-3.5" />
                             Delete
                           </button>
                         </div>
@@ -1344,12 +1433,12 @@ export default function LeadsCrmModule({
                       <td className="py-3 px-3 text-xs font-mono tabular-nums text-slate-300">
                         {lead.nextFollowUpAt || '—'}
                       </td>
-                      <td className="py-3 px-3 text-right">
+                      <td className="py-3 px-4 text-right sticky right-0 bg-slate-900 border-l border-slate-800 shadow-xl min-w-[200px] z-10">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => setDetailLeadId(lead.id)}
-                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded"
+                            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded transition-colors"
                           >
                             Details
                           </button>
@@ -1358,26 +1447,17 @@ export default function LeadsCrmModule({
                             aria-label={`Edit ${lead.businessName}`}
                             title="Edit Lead"
                             onClick={() => handleOpenEditModal(lead)}
-                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded flex items-center gap-1"
+                            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded flex items-center gap-1 transition-colors"
                           >
-                            <Edit3 className="w-3 h-3" />
+                            <Edit3 className="w-3.5 h-3.5" />
                             Edit
                           </button>
                           <button
                             type="button"
                             aria-label={`Delete ${lead.businessName}`}
                             title="Delete Lead"
-                            onClick={async () => {
-                              await onMutate(
-                                'DELETE_LEADS',
-                                { leadIds: [lead.id] },
-                                `Deleted lead: ${lead.businessName}`
-                              );
-                              if (detailLeadId === lead.id) {
-                                setDetailLeadId(null);
-                              }
-                            }}
-                            className="px-2.5 py-1 bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 text-xs font-medium rounded flex items-center gap-1 transition-colors"
+                            onClick={() => setLeadToDelete(lead)}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded flex items-center gap-1 shadow-md transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             Delete
@@ -2390,6 +2470,115 @@ export default function LeadsCrmModule({
               >
                 <Download className="w-3.5 h-3.5" />
                 Download {exportFormat.toUpperCase()}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Lead Confirmation Modal */}
+      {leadToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div
+            role="alertdialog"
+            aria-label="Confirm Lead Deletion"
+            className="bg-slate-900 border border-red-500/50 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-red-950/80 border border-red-500/60 rounded-xl text-red-400 shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete Lead</h3>
+                <p className="text-xs text-red-400">Permanently remove from database &amp; CRM</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Are you sure you want to permanently delete{' '}
+              <span className="font-bold text-white">&ldquo;{leadToDelete.businessName}&rdquo;</span>?
+              All associated outreach activities, notes, and deal information will be wiped.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setLeadToDelete(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const target = leadToDelete;
+                  setLeadToDelete(null);
+                  if (detailLeadId === target.id) {
+                    setDetailLeadId(null);
+                  }
+                  await onMutate(
+                    'DELETE_LEADS',
+                    { leadIds: [target.id] },
+                    `Permanently deleted lead: ${target.businessName}`
+                  );
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Yes, Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Leads Confirmation Modal */}
+      {confirmClearAllOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div
+            role="alertdialog"
+            aria-label="Confirm Clear All Leads"
+            className="bg-slate-900 border border-red-500/50 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-red-950/80 border border-red-500/60 rounded-xl text-red-400 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete All Leads?</h3>
+                <p className="text-xs text-red-400">Total leads to remove: {leads.length}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              This will permanently delete all <span className="font-bold text-white">{leads.length} leads</span> from your CRM and database.
+              This operation cannot be reversed.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmClearAllOpen(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setConfirmClearAllOpen(false);
+                  setDetailLeadId(null);
+                  setSelectedLeadIds(new Set());
+                  await onMutate(
+                    'CLEAR_ALL_LEADS',
+                    {},
+                    `Cleared all ${leads.length} leads from database`
+                  );
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Yes, Delete All Leads
               </button>
             </div>
           </div>

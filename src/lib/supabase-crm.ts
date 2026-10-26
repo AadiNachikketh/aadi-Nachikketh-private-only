@@ -14,19 +14,12 @@ import {
 import {
   getClientFallbackState,
   executeClientFallbackMutation,
+  saveClientFallbackState,
 } from './client-fallback-store';
 import { calculateCommissionAmount } from './crm-logic';
 
-const LOCAL_STORAGE_KEY = 'agency_command_center_static_state_v1';
-
 function saveStateToLocalStorage(state: CrmState) {
-  try {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
-    }
-  } catch {
-    // ignore storage quota errors
-  }
+  saveClientFallbackState(state);
 }
 
 /**
