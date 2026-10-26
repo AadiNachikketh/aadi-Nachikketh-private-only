@@ -13,6 +13,7 @@ import {
   Globe,
   MapPin,
   Edit3,
+  Trash2,
   Archive,
   CheckSquare,
   MessageSquare,
@@ -38,6 +39,10 @@ import {
   exportRecordsToFile,
   ExportColumnDef,
 } from '../utils/spreadsheet';
+import GmailNotifyModal, {
+  GmailDraftPayload,
+  buildOutreacherLeadEmailDraft,
+} from './GmailNotifyModal';
 
 interface LeadsCrmModuleProps {
   leads: LeadRecord[];
@@ -261,9 +266,18 @@ export default function LeadsCrmModule({
         categoryName: openAddLeadTrigger.prefill?.categoryName || categories[0]?.name || 'Jewellery Stores',
         country: openAddLeadTrigger.prefill?.country || 'India',
         state: openAddLeadTrigger.prefill?.state || 'Karnataka',
-        district: openAddLeadTrigger.prefill?.district || 'Bengaluru Urban',
-        city: openAddLeadTrigger.prefill?.city || 'Bengaluru',
-        locality: openAddLeadTrigger.prefill?.locality || 'Whitefield',
+        district:
+          openAddLeadTrigger.prefill?.district ||
+          (openAddLeadTrigger.prefill?.state ? '' : 'Bengaluru Urban'),
+        city:
+          openAddLeadTrigger.prefill?.city ||
+          openAddLeadTrigger.prefill?.district ||
+          (openAddLeadTrigger.prefill?.state ? '' : 'Bengaluru'),
+        locality:
+          openAddLeadTrigger.prefill?.locality ||
+          openAddLeadTrigger.prefill?.city ||
+          openAddLeadTrigger.prefill?.district ||
+          (openAddLeadTrigger.prefill?.state ? '' : 'Whitefield'),
         locationId: openAddLeadTrigger.prefill?.locationId || null,
         address: '',
         websiteStatus: 'No Website',
@@ -486,8 +500,38 @@ export default function LeadsCrmModule({
         ? `Updated lead ${editingLead.businessName}`
         : `Added new lead ${editingLead.businessName} to CRM`
     );
+    if (!editingLead.id) {
+      clearAllFilters();
+    }
     setLeadModalOpen(false);
+    if (editingLead.assignedOutreacherId) {
+      const assignedOutreacher = outreachers.find(
+        (o) => Number(o.id) === Number(editingLead.assignedOutreacherId)
+      );
+      if (assignedOutreacher) {
+        setGmailDraft(
+          buildOutreacherLeadEmailDraft(assignedOutreacher, [
+            {
+              businessName: editingLead.businessName || '',
+              contactName: editingLead.contactName,
+              phone: editingLead.phone,
+              email: editingLead.email,
+              categoryName: editingLead.categoryName,
+              locality: editingLead.locality,
+              city: editingLead.city,
+              websiteStatus: editingLead.websiteStatus,
+              googleMapsUrl: editingLead.googleMapsUrl,
+              estimatedDealValue: editingLead.estimatedDealValue,
+              nextFollowUpAt: editingLead.nextFollowUpAt,
+              notes: editingLead.notes,
+            },
+          ])
+        );
+      }
+    }
   };
+
+  const [gmailDraft, setGmailDraft] = useState<GmailDraftPayload | null>(null);
 
   const detailLead = useMemo(
     () => (detailLeadId ? leads.find((l) => l.id === detailLeadId) || null : null),
@@ -727,6 +771,25 @@ export default function LeadsCrmModule({
               <Download className="w-3.5 h-3.5" />
               Export Spreadsheet
             </button>
+
+            {selectedLeadIds.size > 0 && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const count = selectedLeadIds.size;
+                  await onMutate(
+                    'DELETE_LEADS',
+                    { leadIds: Array.from(selectedLeadIds) },
+                    `Deleted ${count} selected lead${count === 1 ? '' : 's'}`
+                  );
+                  setSelectedLeadIds(new Set());
+                }}
+                className="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors whitespace-nowrap"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete Selected ({selectedLeadIds.size})
+              </button>
+            )}
           </div>
         </div>
 
@@ -989,9 +1052,28 @@ export default function LeadsCrmModule({
                 );
                 setSelectedLeadIds(new Set());
               }}
-              className="px-3 py-1 bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 text-xs rounded"
+              className="px-3 py-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-xs rounded"
             >
               {showArchived ? 'Restore Selected' : 'Archive Selected'}
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                const count = selectedLeadIds.size;
+                await onMutate(
+                  'DELETE_LEADS',
+                  {
+                    leadIds: Array.from(selectedLeadIds),
+                  },
+                  `Deleted ${count} lead${count === 1 ? '' : 's'}`
+                );
+                setSelectedLeadIds(new Set());
+              }}
+              className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-xs font-medium rounded flex items-center gap-1"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete Selected
             </button>
           </div>
         </div>
@@ -1100,13 +1182,33 @@ export default function LeadsCrmModule({
                         />
                       </td>
                       <td className="py-3 px-3">
-                        <button
-                          type="button"
-                          onClick={() => setDetailLeadId(lead.id)}
-                          className="font-semibold text-white hover:text-blue-400 text-left block"
-                        >
-                          {lead.businessName}
-                        </button>
+                        <div className="flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setDetailLeadId(lead.id)}
+                            className="font-semibold text-white hover:text-blue-400 text-left block"
+                          >
+                            {lead.businessName}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Quick delete ${lead.businessName}`}
+                            onClick={async () => {
+                              await onMutate(
+                                'DELETE_LEADS',
+                                { leadIds: [lead.id] },
+                                `Deleted lead: ${lead.businessName}`
+                              );
+                              if (detailLeadId === lead.id) {
+                                setDetailLeadId(null);
+                              }
+                            }}
+                            className="px-2 py-0.5 bg-red-950/70 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 rounded text-[11px] font-medium flex items-center gap-1 shrink-0 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </button>
+                        </div>
                         <div className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-1.5">
                           {lead.contactName && <span>{lead.contactName}</span>}
                           {lead.phone && (
@@ -1137,7 +1239,67 @@ export default function LeadsCrmModule({
                           {[lead.city, lead.state, lead.country].filter(Boolean).join(', ')}
                         </div>
                       </td>
-                      <td className="py-3 px-3 text-xs text-slate-300">{outreacherName}</td>
+                      <td className="py-3 px-3">
+                        <div className="flex flex-col gap-1">
+                          <select
+                            aria-label={`Assign Outreacher for ${lead.businessName}`}
+                            value={lead.assignedOutreacherId ? String(lead.assignedOutreacherId) : ''}
+                            onChange={async (e) => {
+                              const nextOutreacherId = e.target.value ? Number(e.target.value) : null;
+                              const targetOutreacher = outreachers.find(
+                                (o) => Number(o.id) === Number(nextOutreacherId)
+                              );
+                              await onMutate(
+                                'UPSERT_LEAD',
+                                {
+                                  ...lead,
+                                  assignedOutreacherId: nextOutreacherId,
+                                },
+                                targetOutreacher
+                                  ? `Assigned ${lead.businessName} to ${targetOutreacher.fullName}`
+                                  : `Unassigned ${lead.businessName}`
+                              );
+                              if (targetOutreacher) {
+                                setGmailDraft(
+                                  buildOutreacherLeadEmailDraft(targetOutreacher, [lead])
+                                );
+                              }
+                            }}
+                            className={`bg-slate-950 border rounded px-2 py-1 text-xs font-medium ${
+                              lead.assignedOutreacherId
+                                ? 'border-blue-500/40 text-blue-300'
+                                : 'border-slate-800 text-slate-400'
+                            }`}
+                          >
+                            <option value="">Unassigned</option>
+                            {outreachers.map((o) => (
+                              <option key={o.id} value={String(o.id)}>
+                                {o.fullName}
+                              </option>
+                            ))}
+                          </select>
+
+                          {lead.assignedOutreacherId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const targetOutreacher = outreachers.find(
+                                  (o) => Number(o.id) === Number(lead.assignedOutreacherId)
+                                );
+                                if (targetOutreacher) {
+                                  setGmailDraft(
+                                    buildOutreacherLeadEmailDraft(targetOutreacher, [lead])
+                                  );
+                                }
+                              }}
+                              className="px-2 py-0.5 bg-red-950/50 hover:bg-red-900/70 text-red-300 border border-red-500/30 rounded text-[10px] font-medium flex items-center justify-center gap-1"
+                            >
+                              <Mail className="w-2.5 h-2.5" />
+                              Send to Gmail
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-3 px-3">
                         <select
                           aria-label={`Status for ${lead.businessName}`}
@@ -1194,10 +1356,31 @@ export default function LeadsCrmModule({
                           <button
                             type="button"
                             aria-label={`Edit ${lead.businessName}`}
+                            title="Edit Lead"
                             onClick={() => handleOpenEditModal(lead)}
-                            className="p-1 text-slate-400 hover:text-white"
+                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded flex items-center gap-1"
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            <Edit3 className="w-3 h-3" />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Delete ${lead.businessName}`}
+                            title="Delete Lead"
+                            onClick={async () => {
+                              await onMutate(
+                                'DELETE_LEADS',
+                                { leadIds: [lead.id] },
+                                `Deleted lead: ${lead.businessName}`
+                              );
+                              if (detailLeadId === lead.id) {
+                                setDetailLeadId(null);
+                              }
+                            }}
+                            className="px-2.5 py-1 bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 text-xs font-medium rounded flex items-center gap-1 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -1264,6 +1447,10 @@ export default function LeadsCrmModule({
               <button
                 type="button"
                 onClick={async () => {
+                  const targetOutreacher = outreachers.find(
+                    (o) => Number(o.id) === Number(bulkAssignUserId)
+                  );
+                  const assignedLeadsList = leads.filter((l) => selectedLeadIds.has(l.id));
                   await onMutate(
                     'BULK_UPDATE_LEADS',
                     {
@@ -1275,10 +1462,15 @@ export default function LeadsCrmModule({
                   setConfirmBulkAssignOpen(false);
                   setSelectedLeadIds(new Set());
                   setBulkAssignUserId('');
+                  if (targetOutreacher && assignedLeadsList.length > 0) {
+                    setGmailDraft(
+                      buildOutreacherLeadEmailDraft(targetOutreacher, assignedLeadsList)
+                    );
+                  }
                 }}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg"
               >
-                Confirm Assignment
+                Confirm &amp; Notify via Gmail
               </button>
             </div>
           </div>
@@ -1575,20 +1767,46 @@ export default function LeadsCrmModule({
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setLeadModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-medium rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg"
-                >
-                  {editingLead.id ? 'Save Changes' : 'Create Lead Record'}
-                </button>
+              <div className="flex items-center justify-between gap-2 pt-2">
+                <div>
+                  {editingLead.id && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const leadId = editingLead.id;
+                        const leadName = editingLead.businessName || 'Lead';
+                        setLeadModalOpen(false);
+                        await onMutate(
+                          'DELETE_LEADS',
+                          { leadIds: [leadId] },
+                          `Deleted lead: ${leadName}`
+                        );
+                        if (detailLeadId === leadId) {
+                          setDetailLeadId(null);
+                        }
+                      }}
+                      className="px-3.5 py-2 bg-red-950/60 hover:bg-red-900/70 text-red-300 border border-red-500/40 text-xs font-medium rounded-lg flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Lead
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setLeadModalOpen(false)}
+                    className="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-medium rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg"
+                  >
+                    {editingLead.id ? 'Save Changes' : 'Create Lead Record'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1684,6 +1902,23 @@ export default function LeadsCrmModule({
                   className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg"
                 >
                   + Create Website Project
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const idToDelete = detailLead.id;
+                    const nameToDelete = detailLead.businessName;
+                    setDetailLeadId(null);
+                    await onMutate(
+                      'DELETE_LEADS',
+                      { leadIds: [idToDelete] },
+                      `Deleted lead: ${nameToDelete}`
+                    );
+                  }}
+                  className="px-3 py-1.5 bg-red-950/60 hover:bg-red-900/70 text-red-300 border border-red-500/40 text-xs font-medium rounded-lg flex items-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
                 </button>
               </div>
             </div>
@@ -2160,6 +2395,9 @@ export default function LeadsCrmModule({
           </div>
         </div>
       )}
+
+      {/* Gmail Assignment Notification Modal */}
+      <GmailNotifyModal draft={gmailDraft} onClose={() => setGmailDraft(null)} />
     </div>
   );
 }

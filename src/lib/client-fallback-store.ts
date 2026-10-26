@@ -423,8 +423,21 @@ export function executeClientFallbackMutation(
             ...state.leads[idx],
             ...payload,
             id,
+            assignedOutreacherId:
+              payload.assignedOutreacherId !== undefined
+                ? payload.assignedOutreacherId
+                  ? Number(payload.assignedOutreacherId)
+                  : null
+                : state.leads[idx].assignedOutreacherId,
+            assignedDeveloperId:
+              payload.assignedDeveloperId !== undefined
+                ? payload.assignedDeveloperId
+                  ? Number(payload.assignedDeveloperId)
+                  : null
+                : state.leads[idx].assignedDeveloperId,
             estimatedDealValue: Number(payload.estimatedDealValue) || 0,
             agreedDealValue: Number(payload.agreedDealValue) || 0,
+            updatedAt: new Date().toISOString(),
           };
         }
       } else {
@@ -471,6 +484,10 @@ export function executeClientFallbackMutation(
     case 'DELETE_LEADS': {
       const ids = new Set((payload.leadIds || []).map((n: unknown) => Number(n)));
       state.leads = state.leads.filter((l) => !ids.has(l.id));
+      state.activities = state.activities.filter((a) => !ids.has(a.leadId));
+      state.assignments = state.assignments.filter((a) => !ids.has(a.leadId));
+      state.deals = state.deals.filter((d) => !ids.has(d.leadId));
+      state.commissions = state.commissions.filter((c) => !c.leadId || !ids.has(c.leadId));
       break;
     }
 
@@ -497,6 +514,7 @@ export function executeClientFallbackMutation(
               : l.assignedOutreacherId,
           status: payload.status !== undefined ? payload.status : l.status,
           isArchived: payload.isArchived !== undefined ? Boolean(payload.isArchived) : l.isArchived,
+          updatedAt: new Date().toISOString(),
         };
       });
       break;
@@ -522,6 +540,7 @@ export function executeClientFallbackMutation(
         state.leads[leadIdx].lastContactedAt = timestamp.slice(0, 10);
         if (payload.nextFollowUpAt) state.leads[leadIdx].nextFollowUpAt = payload.nextFollowUpAt;
         if (payload.newLeadStatus) state.leads[leadIdx].status = payload.newLeadStatus;
+        state.leads[leadIdx].updatedAt = new Date().toISOString();
       }
       break;
     }
@@ -576,7 +595,17 @@ export function executeClientFallbackMutation(
       if (id) {
         const idx = state.projects.findIndex((p) => p.id === id);
         if (idx >= 0) {
-          state.projects[idx] = { ...state.projects[idx], ...payload, id };
+          state.projects[idx] = {
+            ...state.projects[idx],
+            ...payload,
+            id,
+            assignedDeveloperId:
+              payload.assignedDeveloperId !== undefined
+                ? payload.assignedDeveloperId
+                  ? Number(payload.assignedDeveloperId)
+                  : null
+                : state.projects[idx].assignedDeveloperId,
+          };
         }
       } else {
         state.projects.unshift({
@@ -607,12 +636,29 @@ export function executeClientFallbackMutation(
       break;
     }
 
+    case 'DELETE_PROJECT': {
+      const projId = Number(payload.id);
+      state.projects = state.projects.filter((p) => p.id !== projId);
+      state.tasks = state.tasks.filter((t) => t.projectId !== projId);
+      break;
+    }
+
     case 'UPSERT_PROJECT_TASK': {
       const id = payload.id ? Number(payload.id) : null;
       if (id) {
         const idx = state.tasks.findIndex((t) => t.id === id);
         if (idx >= 0) {
-          state.tasks[idx] = { ...state.tasks[idx], ...payload, id };
+          state.tasks[idx] = {
+            ...state.tasks[idx],
+            ...payload,
+            id,
+            assignedDeveloperId:
+              payload.assignedDeveloperId !== undefined
+                ? payload.assignedDeveloperId
+                  ? Number(payload.assignedDeveloperId)
+                  : null
+                : state.tasks[idx].assignedDeveloperId,
+          };
         }
       } else {
         state.tasks.push({
@@ -682,6 +728,34 @@ export function executeClientFallbackMutation(
           notes: payload.notes || '',
         });
       }
+      break;
+    }
+
+    case 'DELETE_TEAM_MEMBER': {
+      const memberId = Number(payload.id);
+      const memberEmail = payload.email ? String(payload.email).trim().toLowerCase() : '';
+      state.users = state.users.filter(
+        (u) =>
+          u.id !== memberId &&
+          (!memberEmail || (u.email || '').trim().toLowerCase() !== memberEmail)
+      );
+      state.leads = state.leads.map((l) => ({
+        ...l,
+        assignedOutreacherId: l.assignedOutreacherId === memberId ? null : l.assignedOutreacherId,
+        assignedDeveloperId: l.assignedDeveloperId === memberId ? null : l.assignedDeveloperId,
+      }));
+      state.savedLocations = state.savedLocations.map((s) => ({
+        ...s,
+        assignedOutreacherId: s.assignedOutreacherId === memberId ? null : s.assignedOutreacherId,
+      }));
+      state.projects = state.projects.map((p) => ({
+        ...p,
+        assignedDeveloperId: p.assignedDeveloperId === memberId ? null : p.assignedDeveloperId,
+      }));
+      state.tasks = state.tasks.map((t) => ({
+        ...t,
+        assignedDeveloperId: t.assignedDeveloperId === memberId ? null : t.assignedDeveloperId,
+      }));
       break;
     }
 

@@ -13,7 +13,9 @@ import {
   List,
   Download,
   Edit3,
+  Trash2,
   X,
+  Mail,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -25,6 +27,10 @@ import {
 } from '../types/crm';
 import { calculateProjectFinancials } from '../lib/crm-logic';
 import { exportRecordsToFile } from '../utils/spreadsheet';
+import GmailNotifyModal, {
+  GmailDraftPayload,
+  buildDeveloperTaskEmailDraft,
+} from './GmailNotifyModal';
 
 interface DevelopersAndProjectsModuleProps {
   mode: 'developers' | 'projects';
@@ -237,6 +243,8 @@ export default function DevelopersAndProjectsModule({
     });
   }, [tasks, filterDeveloperId]);
 
+  const [gmailDraft, setGmailDraft] = useState<GmailDraftPayload | null>(null);
+
   const handleSaveDevProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     await onMutate(
@@ -259,6 +267,25 @@ export default function DevelopersAndProjectsModule({
         : `Created website project: ${editingProject.projectName}`
     );
     setProjectModalOpen(false);
+    if (editingProject.assignedDeveloperId) {
+      const assignedDev = developers.find(
+        (d) => Number(d.id) === Number(editingProject.assignedDeveloperId)
+      );
+      if (assignedDev) {
+        setGmailDraft(
+          buildDeveloperTaskEmailDraft(assignedDev, {
+            type: 'Project',
+            title: editingProject.projectName || 'Website Project',
+            clientName: editingProject.clientName,
+            status: editingProject.status,
+            priority: editingProject.priority,
+            dueDate: editingProject.dueDate,
+            requirements: editingProject.requirements || editingProject.description,
+            agreedDeveloperCost: editingProject.agreedDeveloperCost,
+          })
+        );
+      }
+    }
   };
 
   const handleSaveTask = async (e: React.FormEvent) => {
@@ -269,6 +296,26 @@ export default function DevelopersAndProjectsModule({
       `Saved task: ${editingTask.title}`
     );
     setTaskModalOpen(false);
+    if (editingTask.assignedDeveloperId) {
+      const assignedDev = developers.find(
+        (d) => Number(d.id) === Number(editingTask.assignedDeveloperId)
+      );
+      const relatedProj = projects.find((p) => Number(p.id) === Number(editingTask.projectId));
+      if (assignedDev) {
+        setGmailDraft(
+          buildDeveloperTaskEmailDraft(assignedDev, {
+            type: 'Task',
+            title: editingTask.title || 'Engineering Task',
+            projectName: relatedProj?.projectName,
+            clientName: relatedProj?.clientName,
+            status: editingTask.status,
+            priority: editingTask.priority,
+            dueDate: editingTask.dueDate,
+            requirements: editingTask.description || relatedProj?.requirements,
+          })
+        );
+      }
+    }
   };
 
   const handleAddPayment = async (e: React.FormEvent) => {
@@ -312,10 +359,36 @@ export default function DevelopersAndProjectsModule({
             <option value="ALL">All Developers ({developers.length})</option>
             {developers.map((d) => (
               <option key={d.id} value={String(d.id)}>
-                {d.fullName}
+                {d.fullName} ({d.email})
               </option>
             ))}
           </select>
+
+          {filterDeveloperId !== 'ALL' && (
+            <button
+              type="button"
+              onClick={async () => {
+                const targetDev = developers.find(
+                  (d) => String(d.id) === String(filterDeveloperId)
+                );
+                if (!targetDev) return;
+                setFilterDeveloperId('ALL');
+                await onMutate(
+                  'DELETE_TEAM_MEMBER',
+                  {
+                    id: targetDev.id,
+                    email: targetDev.email,
+                    role: 'developer',
+                  },
+                  `Deleted developer: ${targetDev.fullName}`
+                );
+              }}
+              className="px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete Selected Developer
+            </button>
+          )}
 
           <select
             aria-label="Filter by Project Status"
@@ -474,14 +547,38 @@ export default function DevelopersAndProjectsModule({
                   <th className="py-2.5 px-3 font-medium text-right">Overdue</th>
                   <th className="py-2.5 px-3 font-medium text-right">Completed</th>
                   <th className="py-2.5 px-3 font-medium text-right">Recorded Payouts</th>
-                  <th className="py-2.5 px-3 font-medium text-right">Edit</th>
+                  <th className="py-2.5 px-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/70 text-sm">
                 {developerWorkloads.map((w) => (
                   <tr key={w.dev.id} className="hover:bg-slate-800/40">
                     <td className="py-3 px-3">
-                      <div className="font-semibold text-white">{w.dev.fullName}</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-semibold text-white">{w.dev.fullName}</div>
+                        <button
+                          type="button"
+                          aria-label={`Quick delete ${w.dev.fullName}`}
+                          onClick={async () => {
+                            if (filterDeveloperId === String(w.dev.id)) {
+                              setFilterDeveloperId('ALL');
+                            }
+                            await onMutate(
+                              'DELETE_TEAM_MEMBER',
+                              {
+                                id: w.dev.id,
+                                email: w.dev.email,
+                                role: 'developer',
+                              },
+                              `Deleted developer: ${w.dev.fullName}`
+                            );
+                          }}
+                          className="px-2 py-0.5 bg-red-950/70 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 rounded text-[11px] font-medium flex items-center gap-1 shrink-0 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Delete
+                        </button>
+                      </div>
                       <div className="text-xs text-slate-400">
                         {w.dev.employmentStatus || 'Contractor'} · {w.dev.email}
                       </div>
@@ -509,19 +606,44 @@ export default function DevelopersAndProjectsModule({
                       ₹{w.totalPaid.toLocaleString('en-IN')}
                     </td>
                     <td className="py-3 px-3 text-right">
-                      {actorRole === 'admin' && (
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
                           aria-label={`Edit ${w.dev.fullName}`}
+                          title="Edit Developer"
                           onClick={() => {
                             setEditingDev({ ...w.dev });
                             setDevModalOpen(true);
                           }}
-                          className="p-1 text-slate-400 hover:text-white"
+                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded flex items-center gap-1"
                         >
-                          <Edit3 className="w-4 h-4" />
+                          <Edit3 className="w-3.5 h-3.5" />
+                          Edit
                         </button>
-                      )}
+                        <button
+                          type="button"
+                          aria-label={`Delete ${w.dev.fullName}`}
+                          title="Delete Developer"
+                          onClick={async () => {
+                            if (filterDeveloperId === String(w.dev.id)) {
+                              setFilterDeveloperId('ALL');
+                            }
+                            await onMutate(
+                              'DELETE_TEAM_MEMBER',
+                              {
+                                id: w.dev.id,
+                                email: w.dev.email,
+                                role: 'developer',
+                              },
+                              `Deleted developer: ${w.dev.fullName}`
+                            );
+                          }}
+                          className="px-2.5 py-1 bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 text-xs font-medium rounded flex items-center gap-1 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -565,7 +687,7 @@ export default function DevelopersAndProjectsModule({
             <tbody className="divide-y divide-slate-800/70 text-sm">
               {filteredProjects.map(({ project, financials, isOverdue }) => {
                 const dev = project.assignedDeveloperId
-                  ? devMap.get(project.assignedDeveloperId)
+                  ? devMap.get(Number(project.assignedDeveloperId))
                   : undefined;
 
                 return (
@@ -577,8 +699,73 @@ export default function DevelopersAndProjectsModule({
                         {project.revisionCount}
                       </div>
                     </td>
-                    <td className="py-3 px-3 text-xs text-slate-300">
-                      {dev ? dev.fullName : 'Unassigned'}
+                    <td className="py-3 px-3">
+                      <div className="flex flex-col gap-1">
+                        <select
+                          aria-label={`Assign developer for ${project.projectName}`}
+                          value={
+                            project.assignedDeveloperId
+                              ? String(project.assignedDeveloperId)
+                              : ''
+                          }
+                          onChange={async (e) => {
+                            const nextDevId = e.target.value ? Number(e.target.value) : null;
+                            const targetDev = nextDevId ? devMap.get(nextDevId) : undefined;
+                            await onMutate(
+                              'UPSERT_PROJECT',
+                              { ...project, assignedDeveloperId: nextDevId },
+                              targetDev
+                                ? `Assigned ${project.projectName} to ${targetDev.fullName}`
+                                : `Unassigned ${project.projectName}`
+                            );
+                            if (targetDev) {
+                              setGmailDraft(
+                                buildDeveloperTaskEmailDraft(targetDev, {
+                                  type: 'Project',
+                                  title: project.projectName,
+                                  clientName: project.clientName,
+                                  status: project.status,
+                                  priority: project.priority,
+                                  dueDate: project.dueDate,
+                                  requirements: project.requirements || project.description,
+                                  agreedDeveloperCost: project.agreedDeveloperCost,
+                                })
+                              );
+                            }
+                          }}
+                          className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-blue-300"
+                        >
+                          <option value="">Unassigned</option>
+                          {developers.map((d) => (
+                            <option key={d.id} value={String(d.id)}>
+                              {d.fullName}
+                            </option>
+                          ))}
+                        </select>
+                        {dev && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setGmailDraft(
+                                buildDeveloperTaskEmailDraft(dev, {
+                                  type: 'Project',
+                                  title: project.projectName,
+                                  clientName: project.clientName,
+                                  status: project.status,
+                                  priority: project.priority,
+                                  dueDate: project.dueDate,
+                                  requirements: project.requirements || project.description,
+                                  agreedDeveloperCost: project.agreedDeveloperCost,
+                                })
+                              )
+                            }
+                            className="px-2 py-0.5 bg-red-950/50 hover:bg-red-900/70 text-red-300 border border-red-500/30 rounded text-[10px] font-medium flex items-center justify-center gap-1"
+                          >
+                            <Mail className="w-2.5 h-2.5" />
+                            Send to Gmail
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-3">
                       <select
@@ -629,17 +816,35 @@ export default function DevelopersAndProjectsModule({
                       ₹{financials.estimatedProjectProfit.toLocaleString('en-IN')}
                     </td>
                     <td className="py-3 px-3 text-right">
-                      <button
-                        type="button"
-                        aria-label={`Edit ${project.projectName}`}
-                        onClick={() => {
-                          setEditingProject({ ...project });
-                          setProjectModalOpen(true);
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-white"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          aria-label={`Edit ${project.projectName}`}
+                          onClick={() => {
+                            setEditingProject({ ...project });
+                            setProjectModalOpen(true);
+                          }}
+                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded flex items-center gap-1"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Delete ${project.projectName}`}
+                          onClick={async () => {
+                            await onMutate(
+                              'DELETE_PROJECT',
+                              { id: project.id },
+                              `Deleted project: ${project.projectName}`
+                            );
+                          }}
+                          className="px-2.5 py-1 bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 text-xs font-medium rounded flex items-center gap-1 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -723,14 +928,31 @@ export default function DevelopersAndProjectsModule({
                   {colTasks.map((task) => {
                     const proj = projMap.get(task.projectId);
                     const dev = task.assignedDeveloperId
-                      ? devMap.get(task.assignedDeveloperId)
+                      ? devMap.get(Number(task.assignedDeveloperId))
                       : undefined;
                     return (
                       <div
                         key={task.id}
                         className="bg-slate-900 border border-slate-800 rounded-lg p-3 space-y-2"
                       >
-                        <div className="text-xs font-semibold text-white">{task.title}</div>
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div className="text-xs font-semibold text-white">{task.title}</div>
+                          <button
+                            type="button"
+                            aria-label={`Delete task ${task.title}`}
+                            onClick={() =>
+                              onMutate(
+                                'DELETE_PROJECT_TASK',
+                                { id: task.id },
+                                `Deleted task: ${task.title}`
+                              )
+                            }
+                            className="px-1.5 py-0.5 bg-red-950/70 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 rounded text-[10px] font-medium flex items-center gap-0.5 shrink-0"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                            Delete
+                          </button>
+                        </div>
                         <div className="text-[11px] text-slate-400 truncate">
                           {proj?.projectName || `Project #${task.projectId}`}
                         </div>
@@ -738,6 +960,29 @@ export default function DevelopersAndProjectsModule({
                           <span>{dev?.fullName || 'Unassigned'}</span>
                           <span className="font-mono tabular-nums">{task.dueDate || ''}</span>
                         </div>
+                        {dev && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setGmailDraft(
+                                buildDeveloperTaskEmailDraft(dev, {
+                                  type: 'Task',
+                                  title: task.title,
+                                  projectName: proj?.projectName,
+                                  clientName: proj?.clientName,
+                                  status: task.status,
+                                  priority: task.priority,
+                                  dueDate: task.dueDate,
+                                  requirements: task.description || proj?.requirements,
+                                })
+                              )
+                            }
+                            className="w-full px-2 py-1 bg-red-950/50 hover:bg-red-900/70 text-red-300 border border-red-500/30 rounded text-[10px] font-medium flex items-center justify-center gap-1"
+                          >
+                            <Mail className="w-2.5 h-2.5" />
+                            Send Task to Gmail
+                          </button>
+                        )}
                         <select
                           aria-label={`Task status for ${task.title}`}
                           value={task.status}
@@ -774,25 +1019,69 @@ export default function DevelopersAndProjectsModule({
                   <th className="py-2 px-3">Priority</th>
                   <th className="py-2 px-3">Due Date</th>
                   <th className="py-2 px-3">Status</th>
+                  <th className="py-2 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/70">
-                {filteredTasks.map((t) => (
-                  <tr key={t.id}>
-                    <td className="py-2.5 px-3 font-medium text-white">{t.title}</td>
-                    <td className="py-2.5 px-3 text-slate-300">
-                      {projMap.get(t.projectId)?.projectName}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-300">
-                      {t.assignedDeveloperId ? devMap.get(t.assignedDeveloperId)?.fullName : '—'}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-300">{t.priority}</td>
-                    <td className="py-2.5 px-3 font-mono tabular-nums text-slate-300">
-                      {t.dueDate || '—'}
-                    </td>
-                    <td className="py-2.5 px-3 text-blue-400">{t.status}</td>
-                  </tr>
-                ))}
+                {filteredTasks.map((t) => {
+                  const dev = t.assignedDeveloperId
+                    ? devMap.get(Number(t.assignedDeveloperId))
+                    : undefined;
+                  const proj = projMap.get(t.projectId);
+                  return (
+                    <tr key={t.id}>
+                      <td className="py-2.5 px-3 font-medium text-white">{t.title}</td>
+                      <td className="py-2.5 px-3 text-slate-300">{proj?.projectName}</td>
+                      <td className="py-2.5 px-3 text-slate-300">{dev?.fullName || '—'}</td>
+                      <td className="py-2.5 px-3 text-slate-300">{t.priority}</td>
+                      <td className="py-2.5 px-3 font-mono tabular-nums text-slate-300">
+                        {t.dueDate || '—'}
+                      </td>
+                      <td className="py-2.5 px-3 text-blue-400">{t.status}</td>
+                      <td className="py-2.5 px-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {dev && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setGmailDraft(
+                                  buildDeveloperTaskEmailDraft(dev, {
+                                    type: 'Task',
+                                    title: t.title,
+                                    projectName: proj?.projectName,
+                                    clientName: proj?.clientName,
+                                    status: t.status,
+                                    priority: t.priority,
+                                    dueDate: t.dueDate,
+                                    requirements: t.description || proj?.requirements,
+                                  })
+                                )
+                              }
+                              className="px-2 py-1 bg-red-950/50 hover:bg-red-900/70 text-red-300 border border-red-500/30 rounded text-[11px] font-medium flex items-center gap-1"
+                            >
+                              <Mail className="w-3 h-3" />
+                              Send to Gmail
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onMutate(
+                                'DELETE_PROJECT_TASK',
+                                { id: t.id },
+                                `Deleted task: ${t.title}`
+                              )
+                            }
+                            className="px-2 py-1 bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 rounded text-[11px] font-medium flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1306,25 +1595,59 @@ export default function DevelopersAndProjectsModule({
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                 />
               </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setDevModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 text-xs rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg"
-                >
-                  Save Developer
-                </button>
+              <div className="flex items-center justify-between gap-2 pt-2">
+                <div>
+                  {editingDev.id && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const devId = editingDev.id;
+                        const devEmail = editingDev.email;
+                        const devName = editingDev.fullName || 'Developer';
+                        setDevModalOpen(false);
+                        if (filterDeveloperId === String(devId)) {
+                          setFilterDeveloperId('ALL');
+                        }
+                        await onMutate(
+                          'DELETE_TEAM_MEMBER',
+                          {
+                            id: devId,
+                            email: devEmail,
+                            role: 'developer',
+                          },
+                          `Deleted developer: ${devName}`
+                        );
+                      }}
+                      className="px-3.5 py-2 bg-red-950/60 hover:bg-red-900/70 text-red-300 border border-red-500/40 text-xs font-medium rounded-lg flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Developer
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDevModalOpen(false)}
+                    className="px-4 py-2 bg-slate-800 text-slate-300 text-xs rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg"
+                  >
+                    Save Developer
+                  </button>
+                </div>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Gmail Assignment Notification Modal */}
+      <GmailNotifyModal draft={gmailDraft} onClose={() => setGmailDraft(null)} />
     </div>
   );
 }

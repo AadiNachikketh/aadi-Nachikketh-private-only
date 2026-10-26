@@ -757,6 +757,35 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case 'DELETE_TEAM_MEMBER': {
+        const memberId = Number(payload.id);
+        if (memberId) {
+          await db
+            .update(leads)
+            .set({ assignedOutreacherId: null })
+            .where(eq(leads.assignedOutreacherId, memberId));
+          await db
+            .update(leads)
+            .set({ assignedDeveloperId: null })
+            .where(eq(leads.assignedDeveloperId, memberId));
+          await db
+            .update(savedLocations)
+            .set({ assignedOutreacherId: null })
+            .where(eq(savedLocations.assignedOutreacherId, memberId));
+          await db
+            .update(projects)
+            .set({ assignedDeveloperId: null })
+            .where(eq(projects.assignedDeveloperId, memberId));
+          await db
+            .update(projectTasks)
+            .set({ assignedDeveloperId: null })
+            .where(eq(projectTasks.assignedDeveloperId, memberId));
+          await db.delete(commissions).where(eq(commissions.outreacherId, memberId));
+          await db.delete(users).where(eq(users.id, memberId));
+        }
+        break;
+      }
+
       case 'UPDATE_COMMISSION_STATUS': {
         if (!canUserPerformAction(actorRole, 'approve_commission')) {
           return NextResponse.json(
